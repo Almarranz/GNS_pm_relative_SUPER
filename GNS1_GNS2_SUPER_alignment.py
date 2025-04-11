@@ -74,7 +74,7 @@ max_sig = 0.3#TODO
 int_trans = 'similarity'
 # int_trans = 'polynomial'
 
-use_grid = 'no'
+use_grid = 'yes'
 
 # sys.exit(87)
 # for chip_one in range(1,2,1):
@@ -212,7 +212,7 @@ gns2.write(pruebas2 + 'gns2_trans.txt', format = 'ascii',overwrite = True)
 
 if use_grid == 'yes':
     # def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size=50, isolation_radius=0.5):
-    gns2_g = grid_stars(gns2,'x2','y2','H2',12,18,grid_size=100,isolation_radius=0.7)
+    gns2_g = grid_stars(gns2,'x','y','H',12,18,grid_size=100,isolation_radius=0.7)
     fig, ax = plt.subplots(1,1)
     ax.scatter(gns1['x'], gns1['y'])
     ax.scatter(gns2_g['x'], gns2_g['y'],s =1)

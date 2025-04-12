@@ -210,8 +210,10 @@ def alg_rel(gns_A, gns_B, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = 
             check_1 = np.array([gns_B['x'],gns_B['y']]).T
             check = compare_lists(check_2, check_1, d_m)
             print(30*'-'+'\nTotal common stars (not only grid):%s\n'%(len(check))+30*'-')
+    
+    gns1 = gns_A
 
-
+    return gns1
 # =============================================================================
 # def alignator(survey,gns,gaia,s_ls, d_m,max_deg, align_by = None,f_mode = None, plot = None, clipping = None, sig_clip = None):
 #     # Proceed with the iterative alignment process from an initial common lists

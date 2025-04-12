@@ -28,6 +28,8 @@ from astropy.stats import sigma_clip
 from filters import filter_gaia_data
 import skimage as ski
 from alignator_relative import alg_rel
+from compare_lists import compare_lists
+
 # %% 
 # %%plotting parametres
 from matplotlib import rc
@@ -95,7 +97,10 @@ transf = 'affine'#!!!
 # transf = 'polynomial'#!!!
 # transf = 'shift'#!!!
 order_trans = 2
-
+max_deg = 3
+d_m = 50
+pix_scale = 0.1064*0.5*1000
+# pix_scale = 0.1064*0.5
 
 # Arches and Quintuplet coordinates for plotting and check if it will be covered.
 # Choose Arches or Quituplet central coordinates #!!!
@@ -114,7 +119,8 @@ pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2absolute_SUPER/pruebas/'
 
 
 gns1 = Table.read(GNS_1 + 'stars_calibrated_H_chip%s.ecsv'%(chip_one),  format = 'ascii.ecsv')
-
+gns1['x'] = gns1['x']*pix_scale
+gns1['y'] = gns1['y']*pix_scale
 
 m_mask = gns1['H']<17
 
@@ -130,6 +136,10 @@ gns1_gal = SkyCoord(l = gns1['l'], b = gns1['b'],
 # gns2_all = np.loadtxt(GNS_2 + 'stars_calibrated_H_chip%s.txt'%(chip_two))
 
 gns2 = Table.read(GNS_2 + 'stars_calibrated_H_chip%s.ecsv'%(chip_two), format = 'ascii')
+gns2['x'] = gns2['x']*pix_scale
+gns2['y'] = gns2['y']*pix_scale
+
+
 unc_cut2 = np.where((gns2['sl']<max_sig) & (gns2['sb']<max_sig))
 gns2 = gns2[unc_cut2]
 
@@ -147,7 +157,7 @@ ax.scatter(l2[::10], gns2['b'][::10],label = 'GNS_2 Fied %s, chip %s'%(field_two
 
 ax.invert_xaxis()
 ax.legend()
-ax.set_xlabel('l[deg]', fontsize = 10)
+ax.set_xlabel('l [deg]', fontsize = 10)
 ax.set_ylabel('b [deg]', fontsize = 10)
 ax.axis('scaled')
 
@@ -265,7 +275,7 @@ gns2_c = SkyCoord(l = gns2['l'], b = gns2['b'],
 
 # %%
 # Driect alignemnet
-max_sep = 200*u.mas#!!!
+max_sep = 100*u.mas#!!!
 
 
 
@@ -303,20 +313,20 @@ xy_1 = np.array([gns1_m['x'],gns1_m['y']]).T
 N = 1
 if transf == 'polynomial':
     p = ski.transform.estimate_transform(transf,
-                                        xy_2[::N], 
-                                        xy_1[::N], order = order_trans)
+                                        xy_1[::N], 
+                                        xy_2[::N], order = order_trans)
 else:    
     p = ski.transform.estimate_transform(transf,
-                                    xy_2[::N], 
-                                    xy_1[::N])
+                                    xy_1[::N], 
+                                    xy_2[::N])
     
 print(p)
 
-xy_gn2 = np.array([gns2['x'],gns2['y']]).T
-xy_gn2_t = p(xy_gn2)
+xy_gn1 = np.array([gns1['x'],gns1['y']]).T
+xy_gn1_t = p(xy_gn1)
 
-gns2['x'] = xy_gn2_t[:,0]*u.deg
-gns2['y'] = xy_gn2_t[:,1]*u.deg    
+gns1['x'] = xy_gn1_t[:,0]
+gns1['y'] = xy_gn1_t[:,1]    
 
 fig, ax = plt.subplots(1,1)
 ax.scatter(gns1['x'],gns1['y'])
@@ -325,83 +335,61 @@ ax.scatter(gns2['x'],gns2['y'])
 # sys.exit(285)
 # def alg_rel(gns_A, gns_B, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = None  ) :
 
-gns1 = alg_rel(gns1, gns2, 'Polywarp','no',max_deg = 3, d_m = 1 )
+gns1 = alg_rel(gns1, gns2, 'Polywarp','no',max_deg = max_deg, d_m = d_m )
 
-mean_b  = np.cos((gns1_m['b'].to(u.rad) + gns2_m['b'].to(u.rad)) / 2.0)
+l1_xy = np.array([gns1['x'],gns1['y']]).T
+l2_xy = np.array([gns2['x'],gns2['y']]).T
+l_12 = compare_lists(l1_xy,l2_xy,d_m)
 
-dl = (gns2_m['l']- gns1_m['l']).to(u.mas)
-db = (gns2_m['b']- gns1_m['b']).to(u.mas)
 
-pm_l = (dl*mean_b)/dt.to(u.year)
-pm_b = (db)/dt.to(u.year)
+print(30*'*'+'\nComon stars after alignment:%s\n'%(len(l_12))+30*'*')
+gns1_m = gns1[l_12['ind_1']]
+gns2_m = gns2[l_12['ind_2']]
+
+
+
+dx = (gns2_m['x']- gns1_m['x'])
+dy = (gns2_m['y']- gns1_m['y'])
+
+pm_x = (dx)/dt.to(u.year)
+pm_y = (dy)/dt.to(u.year)
+# pm_l = (dl*mean_b)/dt.to(u.year)
+# pm_b = (db)/dt.to(u.year)
 
 sig_pm = 3
-m_pml, l_pml, h_pml = sigma_clip(pm_l, sigma = sig_pm, masked = True, return_bounds= True)
-m_pmb, l_pmb, h_pmb = sigma_clip(pm_b, sigma = sig_pm, masked = True, return_bounds= True)
+m_pmx, l_pmx, h_pmx = sigma_clip(pm_x, sigma = sig_pm, masked = True, return_bounds= True)
+m_pmy, l_pmy, h_pmy = sigma_clip(pm_y, sigma = sig_pm, masked = True, return_bounds= True)
+# m_pml, l_pml, h_pml = sigma_clip(pm_l, sigma = sig_pm, masked = True, return_bounds= True)
+# m_pmb, l_pmb, h_pmb = sigma_clip(pm_b, sigma = sig_pm, masked = True, return_bounds= True)
 
 
-m_pm = np.logical_and(np.logical_not(m_pml.mask),np.logical_not(m_pmb.mask))
-pm_lm = pm_l[m_pm]
-pm_bm = pm_b[m_pm]
+m_pm = np.logical_and(np.logical_not(m_pmx.mask),np.logical_not(m_pmy.mask))
+pm_xm = pm_x[m_pm]
+pm_ym = pm_y[m_pm]
 
 gns1_m = gns1_m[m_pm]
-gns1_m['pm_l']  = pm_lm
-gns1_m['pm_b']  = pm_bm
+gns1_m['pm_x']  = pm_xm
+gns1_m['pm_y']  = pm_ym
 
 bins = 'auto'
 # %%
 fig, (ax,ax2) = plt.subplots(1,2)
-ax.hist(pm_l, bins = bins, color = 'k', alpha = 0.2)
-ax2.hist(pm_b, bins = bins,color = 'k', alpha = 0.2)
-ax.hist(pm_lm, bins = bins, histtype = 'step', label = '$\overline{\mu}_{l}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_lm.value),np.std(pm_lm.value)))
-ax2.hist(pm_bm, bins = bins, histtype = 'step',label = '$\overline{\mu}_{b}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_bm.value),np.std(pm_bm.value)))
-ax.set_xlabel('$\Delta \mu_{l}$ [mas]')
-ax2.set_xlabel('$\Delta\mu_{b}$ [mas]')
-ax.axvline(l_pml.value, ls = 'dashed', color = 'r')
-ax.axvline(h_pml.value, ls = 'dashed', color = 'r')
-ax2.axvline(l_pmb.value, ls = 'dashed', color = 'r')
-ax2.axvline(h_pmb.value, ls = 'dashed', color = 'r')
+ax.hist(pm_x, bins = bins, color = 'k', alpha = 0.2)
+ax2.hist(pm_y, bins = bins,color = 'k', alpha = 0.2)
+ax.hist(pm_xm, bins = bins, histtype = 'step', label = '$\overline{\mu}_{l}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_xm.value),np.std(pm_xm.value)))
+ax2.hist(pm_ym, bins = bins, histtype = 'step',label = '$\overline{\mu}_{b}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_ym.value),np.std(pm_ym.value)))
+ax.set_xlabel('$\Delta \mu_{l}$ [mas/yr]')
+ax2.set_xlabel('$\Delta\mu_{b}$ [mas/yr]')
+ax.axvline(l_pmx.value, ls = 'dashed', color = 'r')
+ax.axvline(h_pmy.value, ls = 'dashed', color = 'r')
+ax2.axvline(l_pmy.value, ls = 'dashed', color = 'r')
+ax2.axvline(h_pmy.value, ls = 'dashed', color = 'r')
 ax.legend()
 ax2.legend()
 
 
 # %%
 
-gns1_c = SkyCoord(l = gns1_m['l'], b = gns1_m['b'], 
-                    unit = 'degree', frame = 'galactic')
-
-
-# Gaia comparison
-max_sep = 100*u.mas
-idx,d2d,d3d = gaia_c.match_to_catalog_sky(gns1_c,nthneighbor=1)# ,nthneighbor=1 is for 1-to-1 matchsep_constraint = d2d < max_sep
-sep_constraint = d2d < max_sep
-gaia_m = gaia[sep_constraint]
-gg_m = gns1_m[idx[sep_constraint]]
-
-diff_l = gaia_m['pm_l'] - gg_m['pm_l']
-diff_b = gaia_m['pm_b'] - gg_m['pm_b']
-
-sig_pm = 3
-m_dl, l_dl, h_dl = sigma_clip(diff_l, sigma = sig_pm, masked = True, return_bounds= True)
-m_db, l_db, h_db = sigma_clip(diff_b, sigma = sig_pm, masked = True, return_bounds= True)
-m_dpm = np.logical_and(np.logical_not(m_dl.mask),np.logical_not(m_db.mask))
-
-diff_lm = diff_l[m_dpm]
-diff_bm = diff_b[m_dpm]
-# %
-fig, (ax,ax2) = plt.subplots(1,2)
-# ax.hist(d, bins = bins, color = 'k', alpha = 0.2)
-# ax2.hist(pm_b, bins = bins,color = 'k', alpha = 0.2)
-ax.hist(diff_lm, bins = bins, histtype = 'step', label = '$\Delta{\mu}_{l}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(diff_lm.value),np.std(diff_lm.value)))
-ax2.hist(diff_bm, bins = bins, histtype = 'step',label = '$\Delta{\mu}_{b}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(diff_bm.value),np.std(diff_bm.value)))
-ax.set_xlabel('$\Delta \mu_{l}$ [mas]')
-ax2.set_xlabel('$\Delta\mu_{b}$ [mas]')
-ax.axvline(l_pml.value, ls = 'dashed', color = 'r')
-ax.axvline(h_pml.value, ls = 'dashed', color = 'r')
-ax2.axvline(l_pmb.value, ls = 'dashed', color = 'r')
-ax2.axvline(h_pmb.value, ls = 'dashed', color = 'r')
-ax.legend()
-ax2.legend()
 
 
 

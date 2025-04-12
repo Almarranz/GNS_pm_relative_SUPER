@@ -79,14 +79,7 @@ use_grid = 'yes'
 # sys.exit(87)
 # for chip_one in range(1,2,1):
 
-GNS_1relative = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_python/lists/%s/chip%s/'%(field_one, chip_one)
-GNS_2relative = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_python/lists/%s/chip%s/'%(field_two, chip_two)
-pm_folder = '/Users/amartinez/Desktop/PhD/HAWK/pm_gns1_gns2_relative_python/'
 
-
-
-pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative/pruebas/'
-pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative/pruebas/'
 color = pd.read_csv('/Users/amartinez/Desktop/PhD/python/colors_html.csv')
 morralla = '/Users/amartinez/Desktop/morralla/'
 strin= color.values.tolist()
@@ -98,7 +91,7 @@ pix_scale = 0.1064*0.5
 # pix_scale = 0.1064
 
 max_sep = 50* u.mas
-sig_cl = 3#!!!
+sig_cl = 3e10#!!!
 deg = 1#!!!
 deg_t = 1#!!! Degree for the initial transform
 max_deg = 2
@@ -110,11 +103,15 @@ f_mode = 'W'
 # f_mode = 'WnC'
 # f_mode = 'NW'
 # f_mode = 'NWnC'
+GNS_1='/Users/amartinez/Desktop/PhD/HAWK/GNS_1/lists/%s/chip%s/'%(field_one, chip_one)
+GNS_2='/Users/amartinez/Desktop/PhD/HAWK/GNS_2/lists/%s/chip%s/'%(field_two, chip_two)
 
-# %%
-gns1 = Table.read(GNS_1relative + 'stars_calibrated_H_chip%s_on_gns2_f%sc%s_sxy%s.txt'%(chip_one,field_two,chip_two,max_sig), format = 'ascii')
-gns2 = Table.read(GNS_2relative +'stars_calibrated_H_chip%s_on_gns1_f%sc%s_sxy%s.txt'%(chip_two,field_one,chip_one,max_sig), format = 'ascii')
-   
+pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1absolute_SUPER/pruebas/'
+pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2absolute_SUPER/pruebas/'
+
+
+gns1 = Table.read(GNS_1 + 'stars_calibrated_H_chip%s.ecsv'%(chip_one),  format = 'ascii.ecsv')
+gns2 = Table.read(GNS_2 + 'stars_calibrated_H_chip%s.ecsv'%(chip_two), format = 'ascii.ecsv')
 
 # =============================================================================
 #     if center_only == 'yes':
@@ -128,8 +125,8 @@ gns2 = Table.read(GNS_2relative +'stars_calibrated_H_chip%s_on_gns1_f%sc%s_sxy%s
 # %%
 
 
-gns1_lb = SkyCoord(l = gns1['l'], b = gns1['b'], unit ='deg', frame = 'galactic',equinox ='J2000',obstime='J2015.43')
-gns2_lb = SkyCoord(l = gns2['l'], b = gns2['b'], unit ='deg', frame = 'galactic',equinox ='J2000',obstime='J2022.4')
+gns1_lb = SkyCoord(l = gns1['l'], b = gns1['b'], unit ='deg', frame = 'galactic')
+gns2_lb = SkyCoord(l = gns2['l'], b = gns2['b'], unit ='deg', frame = 'galactic')
 
 
 # 
@@ -141,23 +138,25 @@ sep_constraint = d2d < max_sep
 gns1_match = gns1[sep_constraint]
 gns2_match = gns2[idx[sep_constraint]]
 
-diff_H = gns1_match['H']-gns2_match['H']
-mask_H, l_lim,h_lim = sigma_clip(diff_H, sigma=sig_cl, masked = True, return_bounds= True)
-# %%
-fig, (ax,ax2) = plt.subplots(1,2)
-ax.set_title('Max_dis = %.2f". Matchs = %s'%(max_sep.value, len(gns2_match)))
-ax.hist(diff_H, bins = 'auto')
-ax.axvline(0.1, color = 'orange', ls = 'dashed')
-ax.axvline(-0.1, color = 'orange', ls = 'dashed',label = r'$\pm$0.1H')
-ax.axvline(l_lim, color = 'red', ls = 'dashed')
-ax.axvline(h_lim, color = 'red', ls = 'dashed',label = r'$\pm %s\sigma$'%(sig_cl))
-ax.legend()
-ax.set_xlabel('diff [H]')
-
-ax2.scatter(gns1['l'][::100],gns1['b'][::100], label = f'GNS1 {len(gns1)}')
-ax2.scatter(gns2['l'][::100],gns2['b'][::100],s = 1,label = f'GNS2 {len(gns2)}')
-ax2.axis('scaled')
-ax2.legend()
+# =============================================================================
+# diff_H = gns1_match['H']-gns2_match['H']
+# mask_H, l_lim,h_lim = sigma_clip(diff_H, sigma=sig_cl, masked = True, return_bounds= True)
+# 
+# fig, (ax,ax2) = plt.subplots(1,2)
+# ax.set_title('Max_dis = %.2f". Matchs = %s'%(max_sep.value, len(gns2_match)))
+# ax.hist(diff_H, bins = 'auto')
+# ax.axvline(0.1, color = 'orange', ls = 'dashed')
+# ax.axvline(-0.1, color = 'orange', ls = 'dashed',label = r'$\pm$0.1H')
+# ax.axvline(l_lim, color = 'red', ls = 'dashed')
+# ax.axvline(h_lim, color = 'red', ls = 'dashed',label = r'$\pm %s\sigma$'%(sig_cl))
+# ax.legend()
+# ax.set_xlabel('diff [H]')
+# 
+# ax2.scatter(gns1['l'][::100],gns1['b'][::100], label = f'GNS1 {len(gns1)}')
+# ax2.scatter(gns2['l'][::100],gns2['b'][::100],s = 1,label = f'GNS2 {len(gns2)}')
+# ax2.axis('scaled')
+# ax2.legend()
+# =============================================================================
 # sys.exit(166)
 # %%
 
@@ -186,29 +185,25 @@ p = ski.transform.estimate_transform(int_trans,
 gns1_xy = np.array((gns1['x'],gns1['y'])).T
 gns1_xyt = p(gns1_xy)
 
-# %%
 s_ls = compare_lists(gns1_xyt, np.array([gns2['x'],gns2['y']]).T, d_m)
+gns1['x'] = gns1_xyt[:,0]
+gns1['y'] = gns1_xyt[:,1]
 
-# %%
-
-# sys.exit(198)
-# %%
 fig, ax = plt.subplots(1,1)
 ax.scatter(gns2['x'],gns2['y'],s=10, color = 'k', alpha = 0.1,label = 'GNS2')
 ax.scatter(xy_1c[:,0],xy_1c[:,1], marker = 'x',label = 'GNS1 matched')
-# ax.scatter(gns1_xyt[:,0],gns1_xyt[:,1],marker = 'x',color = 'r',label = 'GNS1 transformed')
+ax.scatter(gns1_xyt[:,0],gns1_xyt[:,1],marker = 'x',color = 'r',label = 'GNS1 transformed')
 ax.scatter(xy_2c[:,0],xy_2c[:,1],s=10, label = 'GNS2 matched')
-ax.legend(fontsize = 9) 
+ax.legend(fontsize = 9, loc = 1) 
 
 
 # ax.set_xlim(2000,2300)
 # %%
-# sys.exit()
-gns1['x'] = gns1_xyt[:,0]
-gns1['y'] = gns1_xyt[:,1]
+# sys.exit(202)
 
-gns1.write(pruebas1 + 'gns1_trans.txt', format = 'ascii', overwrite = True)
-gns2.write(pruebas2 + 'gns2_trans.txt', format = 'ascii',overwrite = True)
+
+# gns1.write(pruebas1 + 'gns1_trans.txt', format = 'ascii', overwrite = True)
+# gns2.write(pruebas2 + 'gns2_trans.txt', format = 'ascii',overwrite = True)
 
 if use_grid == 'yes':
     # def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size=50, isolation_radius=0.5):
@@ -409,27 +404,29 @@ gns1_pm['b'] = gns2['b'][l_12['ind_2']]
 bins = 20
 fig, (ax,ax1)= plt.subplots(1,2)
 fig.suptitle(f'GNS1[f{field_one},c{chip_one}] GNS2[f{field_two},c{chip_two}]', ha = 'right')
-ax.hist(pm_x, bins = bins, label =r'$\overline{\mu_x}$ = %.2f\n$\sigma$ = %.2f'%(np.mean(pm_x),np.std(pm_x)))
-ax1.hist(pm_y, bins = bins,label =r'$\overline{\mu_y}$ = %.2f\n$\sigma$ = %.2f'%(np.mean(pm_y),np.std(pm_y)))
+ax.hist(pm_x, bins = bins, label ='$\overline{\mu}_x$ = %.2f\n$\sigma$ = %.2f'%(np.mean(pm_x),np.std(pm_x)))
+ax1.hist(pm_y, bins = bins,label ='$\overline{\mu}_y$ = %.2f\n$\sigma$ = %.2f'%(np.mean(pm_y),np.std(pm_y)))
 ax.legend()
 ax1.legend()
 ax.set_xlabel(r'$\mu_x$[mas/yr]')
 ax1.set_xlabel(r'$\mu_y$[mas/yr]')
 
 # sys.exit(347)
-files_to_remove = glob.glob(os.path.join(pm_folder, f'pm_ep1_f{field_one:.0f}c{chip_one}_ep2_f{field_two}c{chip_two}**.txt'))
-
-# Remove the files
-for file in files_to_remove:
-    try:
-        os.remove(file)
-        print(f"Removed: {file}")
-    except Exception as e:
-        print(f"Error removing {file}: {e}")
-gns1_pm.write(pm_folder + f'pm_ep1_f{field_one:.0f}c{chip_one}_ep2_f{field_two}c{chip_two}deg{deg-1}_dmax{d_m_pm}_sxy%.1f.txt'%(max_sig), format = 'ascii', overwrite = True)
-print(30*'_' + f'\npm_ep1_f{field_one:.0f}c{chip_one}_ep2_f{field_two}c{chip_two}deg{deg-1}_dmax{d_m_pm}_sxy%.1f.txt\n'%(max_sig)+ 30*'_')
-# sys.exit(388)
+# =============================================================================
+# files_to_remove = glob.glob(os.path.join(pm_folder, f'pm_ep1_f{field_one:.0f}c{chip_one}_ep2_f{field_two}c{chip_two}**.txt'))
 # 
+# # Remove the files
+# for file in files_to_remove:
+#     try:
+#         os.remove(file)
+#         print(f"Removed: {file}")
+#     except Exception as e:
+#         print(f"Error removing {file}: {e}")
+# gns1_pm.write(pm_folder + f'pm_ep1_f{field_one:.0f}c{chip_one}_ep2_f{field_two}c{chip_two}deg{deg-1}_dmax{d_m_pm}_sxy%.1f.txt'%(max_sig), format = 'ascii', overwrite = True)
+# print(30*'_' + f'\npm_ep1_f{field_one:.0f}c{chip_one}_ep2_f{field_two}c{chip_two}deg{deg-1}_dmax{d_m_pm}_sxy%.1f.txt\n'%(max_sig)+ 30*'_')
+# # sys.exit(388)
+# # 
+# =============================================================================
 
 # %%
 # fig, ax  = plt.subplots(1,1)

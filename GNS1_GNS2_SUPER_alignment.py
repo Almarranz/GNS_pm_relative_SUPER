@@ -74,7 +74,7 @@ max_sig = 0.3#TODO
 int_trans = 'similarity'
 # int_trans = 'polynomial'
 
-use_grid = 'yes'
+
 
 # sys.exit(87)
 # for chip_one in range(1,2,1):
@@ -90,13 +90,20 @@ center_only = 'no'
 pix_scale = 0.1064*0.5
 # pix_scale = 0.1064
 
+use_grid = 'no'
 max_sep = 50* u.mas
 sig_cl = 3e10#!!!
 deg = 1#!!!
 deg_t = 1#!!! Degree for the initial transform
 max_deg = 2
-d_m = 0.7#!!! max distance for the fine alignment betwenn GNS1 and 2
-d_m_pm = 3#!!! max distance for the proper motions
+d_m_mas = 10#!!!in mas, max distance for the fine alignment betwenn GNS1 and 2
+d_m_pm_mas = 150#!!! in mas, max distance for the proper motions
+d_m = d_m_mas/(pix_scale*1000)#!!! in pix, max distance for the fine alignment betwenn GNS1 and 2
+d_m_pm = d_m_pm_mas/(pix_scale*1000)#!!! in pix, max distance for the proper motions
+
+# print(d_m, d_m_pm)
+# sys.exit()
+
 align_by = 'Polywarp'#!!!
 # align_by = '2DPoly'#!!!
 f_mode = 'W'
@@ -128,6 +135,10 @@ gns2 = Table.read(GNS_2 + 'stars_calibrated_H_chip%s.ecsv'%(chip_two), format = 
 gns1_lb = SkyCoord(l = gns1['l'], b = gns1['b'], unit ='deg', frame = 'galactic')
 gns2_lb = SkyCoord(l = gns2['l'], b = gns2['b'], unit ='deg', frame = 'galactic')
 
+# gns1['x'] = gns1['x']*pix_scale
+# gns1['y'] = gns1['y']*pix_scale
+# gns2['x'] = gns2['x']*pix_scale
+# gns2['y'] = gns2['y']*pix_scale
 
 # 
 #I cosider a math if the stars are less than 'max_sep' arcsec away 
@@ -205,6 +216,8 @@ ax.legend(fontsize = 9, loc = 1)
 # gns1.write(pruebas1 + 'gns1_trans.txt', format = 'ascii', overwrite = True)
 # gns2.write(pruebas2 + 'gns2_trans.txt', format = 'ascii',overwrite = True)
 
+# gns1 = alg_rel(gns1, gns2, 'Polywarp','no',max_deg = max_deg, d_m = d_m )
+# sys.exit(220)
 if use_grid == 'yes':
     # def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size=50, isolation_radius=0.5):
     gns2_g = grid_stars(gns2,'x','y','H',12,18,grid_size=100,isolation_radius=0.7)
@@ -388,6 +401,9 @@ l_12 = compare_lists(l1, l2,d_m_pm)
 gns1_pm = gns1[l_12['ind_1']]
 gns2_pm = gns2[l_12['ind_2']]
 delta_t = t2-t1
+# pm_x = (gns2['x'][l_12['ind_2']] - gns1['x'][l_12['ind_1']])/delta_t
+# pm_y = (gns2['y'][l_12['ind_2']] - gns1['y'][l_12['ind_1']])/delta_t
+
 pm_x = (gns2['x'][l_12['ind_2']] - gns1['x'][l_12['ind_1']])*pix_scale*1000/delta_t
 pm_y = (gns2['y'][l_12['ind_2']] - gns1['y'][l_12['ind_1']])*pix_scale*1000/delta_t
 
@@ -403,7 +419,7 @@ gns1_pm['b'] = gns2['b'][l_12['ind_2']]
 # %%
 bins = 20
 fig, (ax,ax1)= plt.subplots(1,2)
-fig.suptitle(f'GNS1[f{field_one},c{chip_one}] GNS2[f{field_two},c{chip_two}]', ha = 'right')
+fig.suptitle(f'GNS1[f{field_one},c{chip_one}] GNS2[f{field_two},c{chip_two}]. Deg = {max_deg - 1}, grid = {use_grid}', ha = 'center')
 ax.hist(pm_x, bins = bins, label ='$\overline{\mu}_x$ = %.2f\n$\sigma$ = %.2f'%(np.mean(pm_x),np.std(pm_x)))
 ax1.hist(pm_y, bins = bins,label ='$\overline{\mu}_y$ = %.2f\n$\sigma$ = %.2f'%(np.mean(pm_y),np.std(pm_y)))
 ax.legend()

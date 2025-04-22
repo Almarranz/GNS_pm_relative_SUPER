@@ -76,4 +76,4 @@ def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size=50, iso
     # Convert the list to an Astropy Table
     selected_stars_table = vstack(selected_stars) if selected_stars else Table(names=table.colnames)
 
-    return selected_stars_table
+    return selected_stars_table, x_edges, y_edges

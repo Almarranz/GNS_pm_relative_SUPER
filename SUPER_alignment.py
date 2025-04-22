@@ -1,35 +1,39 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 """
-Created on Sun Nov 27 16:19:45 2022
+Created on Fri Nov  8 12:42:20 2024
 
 @author: amartinez
 """
 
-# Generates the GNS1 second reduction with the Ks and H magnitudes
-
 import numpy as np
 import matplotlib.pyplot as plt
-import astroalign as aa
-from astropy.io.fits import getheader
-from astropy.io import fits
-from scipy.spatial import distance
-import pandas as pd
-import sys
-import time
-from astropy.wcs import WCS
-from astropy.io import fits
-from astropy import units as u
-from astropy.coordinates import SkyCoord
+from compare_lists import compare_lists 
 from astropy.table import Table
+import skimage as ski
+import sys
+from astropy.stats import sigma_clip
+
+from astropy.coordinates import SkyCoord
+import Polywarp as pw
+
+from astropy import units as u
+
+import pandas as pd
+
+import os
+import glob
+from astropy.modeling.models import Polynomial2D
+from astropy.modeling.fitting import LinearLSQFitter
+from grid import grid_stars
+from astropy.modeling.models import Polynomial2D
+from astropy.modeling.fitting import LinearLSQFitter
+from astropy.modeling import models, fitting
+from alignator_relative import alg_rel
 from astropy.time import Time
 from astroquery.gaia import Gaia
-from astropy.stats import sigma_clip
-from filters import filter_gaia_data
-import skimage as ski
-from alignator_relative import alg_rel
-from compare_lists import compare_lists
 
+from filters import filter_gaia_data
 # %% 
 # %%plotting parametres
 from matplotlib import rc
@@ -55,20 +59,20 @@ rcParams.update({
 plt.rcParams["mathtext.fontset"] = 'dejavuserif'
 rc('font',**{'family':'serif','serif':['Palatino']})
 plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib pop up because so many plots, this turining it of
-# Enable automatic plotting mode
-import IPython
-# IPython.get_ipython().run_line_magic('matplotlib', 'auto')
-IPython.get_ipython().run_line_magic('matplotlib', 'inline')
 
-#%%
-field_one = 60#
+# field_one, chip_one, field_two, chip_two,t1,t2,max_sig = np.loadtxt('/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_python/lists/fields_and_chips.txt', 
+#                                                        unpack=True)
+# field_one = field_one.astype(int)
+# chip_one = chip_one.astype(int)
+# field_two = field_two.astype(int)
+# chip_two = chip_two.astype(int)
+
+# sys.exit(75)
+field_one = 60
 chip_one = 0
 field_two = 20
 chip_two = 0
 
-
-max_sig = 0.005
-# max_sig = 2
 
 if field_one == 7 or field_one == 12 or field_one == 10 or field_one == 16:
     t1 = Time(['2015-06-07T00:00:00'],scale='utc')
@@ -91,26 +95,49 @@ else:
 
 dt = t2 - t1
 
-
-transf = 'affine'#!!!
-# transf = 'similarity'#!!!1|
-# transf = 'polynomial'#!!!
-# transf = 'shift'#!!!
-order_trans = 2
-max_deg = 3
-d_m = 50
-pix_scale = 0.1064*0.5*1000
-# pix_scale = 0.1064*0.5
-
-# Arches and Quintuplet coordinates for plotting and check if it will be covered.
-# Choose Arches or Quituplet central coordinates #!!!
-# arch = SkyCoord(ra = '17h45m50.65020s', dec = '-28d49m19.51468s', equinox = 'J2000').galactic
-# arch_ecu = SkyCoord(ra = '17h45m50.65020s', dec = '-28d49m19.51468s', equinox = 'J2000')
-arch =  SkyCoord('17h46m15.13s', '-28d49m34.7s', frame='icrs',obstime ='J2016.0').galactic#Quintuplet
-arch_ecu =  SkyCoord('17h46m15.13s', '-28d49m34.7s', frame='icrs',obstime ='J2016.0')#Quintuplet
+int_trans = 'affine'
+# int_trans = 'similarity'
+# int_trans = 'polynomial'
 
 
-# GNS_1='/Users/amartinez/Desktop/PhD/HAWK/GNS_1/lists/%s/chip%s/'%(field_one, chip_one)
+
+# sys.exit(87)
+# for chip_one in range(1,2,1):
+
+
+color = pd.read_csv('/Users/amartinez/Desktop/PhD/python/colors_html.csv')
+morralla = '/Users/amartinez/Desktop/morralla/'
+strin= color.values.tolist()
+indices = np.arange(0,len(strin),1)
+
+# center_only = 'yes'#TODO yes, eliminates foregroud, no, keep them
+center_only = 'no'
+pix_scale = 0.1064*0.5
+# pix_scale = 0.1064
+# max_sig = 0.3#TODO
+
+max_sig = 0.1
+# max_sig = 2
+use_grid = 'yes'
+max_sep = 50* u.mas
+sig_cl = 3e10#!!!
+deg = 1#!!!
+deg_t = 1#!!! Degree for the initial transform
+max_deg = 2
+d_m_mas = 50#!!!in mas, max distance for the fine alignment betwenn GNS1 and 2
+d_m_pm_mas = 150#!!! in mas, max distance for the proper motions
+d_m = d_m_mas/(pix_scale*1000)#!!! in pix, max distance for the fine alignment betwenn GNS1 and 2
+d_m_pm = d_m_pm_mas/(pix_scale*1000)#!!! in pix, max distance for the proper motions
+
+# print(d_m, d_m_pm)
+# sys.exit()
+
+# align_by = 'Polywarp'#!!!
+align_by = '2DPoly'#!!!
+# f_mode = 'W'
+f_mode = 'WnC'
+# f_mode = 'NW'
+# f_mode = 'NWnC'
 GNS_1='/Users/amartinez/Desktop/PhD/HAWK/GNS_1/lists/%s/chip%s/'%(field_one, chip_one)
 GNS_2='/Users/amartinez/Desktop/PhD/HAWK/GNS_2/lists/%s/chip%s/'%(field_two, chip_two)
 
@@ -119,72 +146,187 @@ pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2absolute_SUPER/pruebas/'
 
 
 gns1 = Table.read(GNS_1 + 'stars_calibrated_H_chip%s.ecsv'%(chip_one),  format = 'ascii.ecsv')
-gns1['x'] = gns1['x']*pix_scale
-gns1['y'] = gns1['y']*pix_scale
+gns2 = Table.read(GNS_2 + 'stars_calibrated_H_chip%s.ecsv'%(chip_two), format = 'ascii.ecsv')
 
-m_mask = gns1['H']<17
-
+m_mask = gns1['H']<19
 gns1 = gns1[m_mask]
-unc_cut = np.where((gns1['sl']<max_sig) & (gns1['sb']<max_sig))
-gns1 = gns1[unc_cut]
 
-gns1_gal = SkyCoord(l = gns1['l'], b = gns1['b'], 
-                    unit = 'degree', frame = 'galactic')
+unc_cut1 = (gns1['sl']<max_sig) & (gns1['sb']<max_sig)
+gns1 = gns1[unc_cut1]
 
-
-# %%
-# gns2_all = np.loadtxt(GNS_2 + 'stars_calibrated_H_chip%s.txt'%(chip_two))
-
-gns2 = Table.read(GNS_2 + 'stars_calibrated_H_chip%s.ecsv'%(chip_two), format = 'ascii')
-gns2['x'] = gns2['x']*pix_scale
-gns2['y'] = gns2['y']*pix_scale
-
-
-unc_cut2 = np.where((gns2['sl']<max_sig) & (gns2['sb']<max_sig))
+unc_cut2 = (gns2['sl']<max_sig) & (gns2['sb']<max_sig)
 gns2 = gns2[unc_cut2]
 
 
-gns2_gal = SkyCoord(l = gns2['l'], b = gns2['b'], 
-                    unit = 'degree', frame = 'galactic')
 
 
-
-l2 = gns2_gal.l.wrap_at('360d')
-l1 = gns1_gal.l.wrap_at('360d')
-fig, ax = plt.subplots(1,1,figsize =(5,5))
-ax.scatter(l1[::10], gns1['b'][::10],label = 'GNS_1 Fied %s, chip %s'%(field_one,chip_one),zorder=3)
-ax.scatter(l2[::10], gns2['b'][::10],label = 'GNS_2 Fied %s, chip %s'%(field_two,chip_two))
-
-ax.invert_xaxis()
-ax.legend()
-ax.set_xlabel('l [deg]', fontsize = 10)
-ax.set_ylabel('b [deg]', fontsize = 10)
-ax.axis('scaled')
-
-
-
-# f_work = '/Users/amartinez/Desktop/PhD/Thesis/document/mi_tesis/tesis/Future_work/'
-# plt.savefig(f_work+ 'gsn1_gns2_fields.png', bbox_inches='tight')
-
-
-
-
-
-buenos1 = np.where((gns1_gal.l>min(gns2_gal.l)) & (gns1_gal.l<max(gns2_gal.l)) &
-                   (gns1_gal.b>min(gns2_gal.b)) & (gns1_gal.b<max(gns2_gal.b)))
+buenos1 = (gns1['l']>min(gns2['l'])) & (gns1['l']<max(gns2['l'])) & (gns1['b']>min(gns2['b'])) & (gns1['b']<max(gns2['b']))
 
 gns1 = gns1[buenos1]
 gns1['ID'] = np.arange(len(gns1))
 
-buenos2 = np.where((gns2_gal.l>min(gns1_gal.l)) & (gns2_gal.l<max(gns1_gal.l)) &
-                   (gns2_gal.b>min(gns1_gal.b)) & (gns2_gal.b<max(gns1_gal.b)))
+buenos2 = (gns2['l']>min(gns1['l'])) & (gns2['l']<max(gns1['l'])) & (gns2['b']>min(gns1['b'])) & (gns2['b']<max(gns1['b']))
 
 gns2 = gns2[buenos2]
 gns2['ID'] = np.arange(len(gns2))
 
-l1 = l1[buenos1]
-l2 = l2[buenos2]
 
+
+# =============================================================================
+#     if center_only == 'yes':
+#         center = np.where(gns1['H1'] - gns1['Ks1'] > 1.3)
+#     elif center_only == 'no':
+#         center = np.where(gns1['H1'] - gns1['Ks1']  > -1)
+#     
+#     # gns1_center = copy.deepcopy(gns1)
+#     gns1 = gns1[center] 
+# =============================================================================
+# %%
+
+
+gns1_lb = SkyCoord(l = gns1['l'], b = gns1['b'], unit ='deg', frame = 'galactic')
+gns2_lb = SkyCoord(l = gns2['l'], b = gns2['b'], unit ='deg', frame = 'galactic')
+
+# gns1['x'] = gns1['x']*pix_scale
+# gns1['y'] = gns1['y']*pix_scale
+# gns2['x'] = gns2['x']*pix_scale
+# gns2['y'] = gns2['y']*pix_scale
+
+# 
+#I cosider a math if the stars are less than 'max_sep' arcsec away 
+# This is for cutting the the overlapping areas of both lists. (Makes astroaling work faster)
+
+idx,d2d,d3d = gns1_lb.match_to_catalog_sky(gns2_lb)# ,nthneighbor=1 is for 1-to-1 match
+sep_constraint = d2d < max_sep
+gns1_match = gns1[sep_constraint]
+gns2_match = gns2[idx[sep_constraint]]
+
+# =============================================================================
+# diff_H = gns1_match['H']-gns2_match['H']
+# mask_H, l_lim,h_lim = sigma_clip(diff_H, sigma=sig_cl, masked = True, return_bounds= True)
+# 
+# fig, (ax,ax2) = plt.subplots(1,2)
+# ax.set_title('Max_dis = %.2f". Matchs = %s'%(max_sep.value, len(gns2_match)))
+# ax.hist(diff_H, bins = 'auto')
+# ax.axvline(0.1, color = 'orange', ls = 'dashed')
+# ax.axvline(-0.1, color = 'orange', ls = 'dashed',label = r'$\pm$0.1H')
+# ax.axvline(l_lim, color = 'red', ls = 'dashed')
+# ax.axvline(h_lim, color = 'red', ls = 'dashed',label = r'$\pm %s\sigma$'%(sig_cl))
+# ax.legend()
+# ax.set_xlabel('diff [H]')
+# 
+# ax2.scatter(gns1['l'][::100],gns1['b'][::100], label = f'GNS1 {len(gns1)}')
+# ax2.scatter(gns2['l'][::100],gns2['b'][::100],s = 1,label = f'GNS2 {len(gns2)}')
+# ax2.axis('scaled')
+# ax2.legend()
+# =============================================================================
+# sys.exit(166)
+# %%
+
+loop = 0
+comom_ls = []
+dic_xy = {}
+dic_Kx ={}
+dic_xy_final = {}
+
+xy_1c = np.array((gns1_match['x'], gns1_match['y'])).T
+xy_2c = np.array((gns2_match['x'], gns2_match['y'])).T
+# xy_1c = np.array((gns1_match['x'][np.logical_not(mask_H.mask)], gns1_match['y'][np.logical_not(mask_H.mask)])).T
+# xy_2c = np.array((gns2_match['x'][np.logical_not(mask_H.mask)], gns2_match['y'][np.logical_not(mask_H.mask)])).T
+
+# sys.exit(184)
+# %%
+p = ski.transform.estimate_transform(int_trans,
+                                              xy_1c, 
+                                              xy_2c)
+# %%
+# if int_trans == 'polynomial':
+#     p = ski.transform.estimate_transform(int_trans,
+#                                                   xy_1c, 
+#                                                   xy_2c, order = deg_t)
+    
+gns1_xy = np.array((gns1['x'],gns1['y'])).T
+gns1_xyt = p(gns1_xy)
+
+s_ls = compare_lists(gns1_xyt, np.array([gns2['x'],gns2['y']]).T, d_m)
+gns1['x'] = gns1_xyt[:,0]
+gns1['y'] = gns1_xyt[:,1]
+
+fig, ax = plt.subplots(1,1)
+ax.scatter(gns2['x'],gns2['y'],s=10, color = 'k', alpha = 0.1,label = 'GNS2')
+ax.scatter(xy_1c[:,0],xy_1c[:,1], marker = 'x',label = 'GNS1 matched')
+ax.scatter(gns1_xyt[:,0],gns1_xyt[:,1],marker = 'x',color = 'r',label = 'GNS1 transformed')
+ax.scatter(xy_2c[:,0],xy_2c[:,1],s=10, label = 'GNS2 matched')
+ax.legend(fontsize = 9, loc = 1) 
+
+
+# ax.set_xlim(2000,2300)
+# %%
+# sys.exit(202)
+
+
+# gns1.write(pruebas1 + 'gns1_trans.txt', format = 'ascii', overwrite = True)
+# gns2.write(pruebas2 + 'gns2_trans.txt', format = 'ascii',overwrite = True)
+
+gns1 = alg_rel(gns1, gns2, 'Polywarp',use_grid,max_deg = max_deg, d_m = d_m )
+# %%
+l1_xy = np.array([gns1['x'],gns1['y']]).T
+l2_xy = np.array([gns2['x'],gns2['y']]).T
+l_12 = compare_lists(l1_xy,l2_xy,d_m_pm)
+
+
+print(30*'*'+'\nComon stars after alignment:%s\n'%(len(l_12))+30*'*')
+gns1_m = gns1[l_12['ind_1']]
+gns2_m = gns2[l_12['ind_2']]
+
+
+
+dx = (gns2_m['x'].value- gns1_m['x'].value)*pix_scale*1000
+dy = (gns2_m['y'].value- gns1_m['y'].value)*pix_scale*1000
+
+pm_x = (dx*u.mas)/dt.to(u.year)
+pm_y = (dy*u.mas)/dt.to(u.year)
+# pm_l = (dl*mean_b)/dt.to(u.year)
+# pm_b = (db)/dt.to(u.year)
+
+sig_pm = 3
+m_pmx, l_pmx, h_pmx = sigma_clip(pm_x, sigma = sig_pm, masked = True, return_bounds= True)
+m_pmy, l_pmy, h_pmy = sigma_clip(pm_y, sigma = sig_pm, masked = True, return_bounds= True)
+# m_pml, l_pml, h_pml = sigma_clip(pm_l, sigma = sig_pm, masked = True, return_bounds= True)
+# m_pmb, l_pmb, h_pmb = sigma_clip(pm_b, sigma = sig_pm, masked = True, return_bounds= True)
+
+
+m_pm = np.logical_and(np.logical_not(m_pmx.mask),np.logical_not(m_pmy.mask))
+pm_xm = pm_x[m_pm]
+pm_ym = pm_y[m_pm]
+
+gns1_m = gns1_m[m_pm]
+gns2_m = gns2_m[m_pm]
+
+gns1_m['pm_x']  = pm_xm
+gns1_m['pm_y']  = pm_ym
+
+gns2_m['pm_x']  = pm_xm
+gns2_m['pm_y']  = pm_ym
+
+bins = 'auto'
+# %
+fig, (ax,ax2) = plt.subplots(1,2)
+ax.hist(pm_x, bins = bins, color = 'k', alpha = 0.2)
+ax2.hist(pm_y, bins = bins,color = 'k', alpha = 0.2)
+ax.hist(pm_xm, bins = bins, histtype = 'step', label = '$\overline{\mu}_{x}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_xm.value),np.std(pm_xm.value)))
+ax2.hist(pm_ym, bins = bins, histtype = 'step',label = '$\overline{\mu}_{y}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_ym.value),np.std(pm_ym.value)))
+ax.set_xlabel('$\Delta \mu_{x}$ [mas/yr]')
+ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
+ax.axvline(l_pmx.value, ls = 'dashed', color = 'r')
+ax.axvline(h_pmy.value, ls = 'dashed', color = 'r')
+ax2.axvline(l_pmy.value, ls = 'dashed', color = 'r')
+ax2.axvline(h_pmy.value, ls = 'dashed', color = 'r')
+ax.legend()
+ax2.legend()
+
+
+# %%
 
 radius = abs(np.min(gns1['l'])-np.max(gns1['l']))*0.6*u.degree
 center_g = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
@@ -203,7 +345,7 @@ except:
     gaia = j.get_results()
     gaia.write(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value))
 
-e_pm = 0.3
+e_pm = 0.5
 gaia = filter_gaia_data(
     gaia_table=gaia,
     astrometric_params_solved=31,
@@ -220,10 +362,10 @@ gaia = filter_gaia_data(
 
 
 
-t1 = Time(['2016-06-13T00:00:00','2016-01-01T00:00:00'],scale='utc')
+tg = Time(['2016-01-01T00:00:00'],scale='utc')
 
 
-dt = t1[0]-t1[1]
+dtg = t1 - tg
 
 # g_gpm = SkyCoord(ra = gaia['ra'], dec = gaia['dec'], pm_ra_cosdec = gaia['pmra'].value*u.mas/u.yr, pm_dec = ['pmdec'].value*u.mas/u.yr, obstime = 'J2016', equinox = 'J2000', frame = 'fk5')
 ga_gpm = SkyCoord(ra = gaia['ra'], dec = gaia['dec'], pm_ra_cosdec = gaia['pmra'],
@@ -232,8 +374,8 @@ ga_gpm = SkyCoord(ra = gaia['ra'], dec = gaia['dec'], pm_ra_cosdec = gaia['pmra'
 
 
 l_off,b_off = center_g.spherical_offsets_to(ga_gpm.frame)
-l_offt = l_off.to(u.mas) + (ga_gpm.pm_l_cosb)*dt.to(u.yr)
-b_offt = b_off.to(u.mas) + (ga_gpm.pm_b)*dt.to(u.yr)
+l_offt = l_off.to(u.mas) + (ga_gpm.pm_l_cosb)*dtg.to(u.yr)
+b_offt = b_off.to(u.mas) + (ga_gpm.pm_b)*dtg.to(u.yr)
 
 ga_gtc = center_g.spherical_offsets_by(l_offt, b_offt)
 
@@ -242,21 +384,31 @@ gaia['l'] = ga_gtc.l
 gaia['b'] = ga_gtc.b
 
 
-# %%
+# %
 gaia_c = SkyCoord(ra = gaia['ra'], dec = gaia['dec'], 
                   pm_ra_cosdec = gaia['pmra'], pm_dec = gaia['pmdec'],
                   frame = 'icrs', obstime = 'J2016.0').galactic
 
 gaia['pm_l'] = gaia_c.pm_l_cosb
 gaia['pm_b'] = gaia_c.pm_b
-# %%
+# %
 
 ga_l = gaia_c.l.wrap_at('360.02d')
 ga_b = gaia_c.b.wrap_at('180d')
 
+gns2_gal = SkyCoord(l = gns2_m['l'], b = gns2_m['b'], 
+                    unit = 'degree', frame = 'galactic')
+gns1_gal = SkyCoord(l = gns1_m['l'], b = gns1_m['b'], 
+                    unit = 'degree', frame = 'galactic')
+
+
+
+l2 = gns2_gal.l.wrap_at('360d')
+l1 = gns1_gal.l.wrap_at('360d')
+
 fig, ax = plt.subplots(1,1,figsize =(10,10))
-ax.scatter(l1[::10], gns1['b'][::10],label = 'GNS_1 Fied %s, chip %s'%(field_one,chip_one))
-ax.scatter(l2[::10],  gns2['b'][::10],s = 1, label = 'GNS_2 Fied %s, chip %s'%(field_two,chip_two))
+ax.scatter(l1[::10], gns1_m['b'][::10],label = 'GNS_1 Fied %s, chip %s'%(field_one,chip_one))
+ax.scatter(l2[::10],  gns2_m['b'][::10],s = 1, label = 'GNS_2 Fied %s, chip %s'%(field_two,chip_two))
 ax.scatter(ga_l,gaia['b'], label = f'Gaia stars = {len(gaia)}')
 ax.invert_xaxis()
 ax.legend()
@@ -265,132 +417,38 @@ ax.set_ylabel('b [deg]', fontsize = 10)
 # ax.axis('scaled')
 ax.set_ylim(min(gaia['b']),max(gaia['b']))
 
+# %
 
+max_sep = 80*u.mas
+# idx,d2d,d3d = gns2_gal.match_to_catalog_sky(gaia_c)# ,nthneighbor=1 is for 1-to-1 match
+# sep_constraint = d2d < max_sep
+# gns_ga = gns2_m[sep_constraint]
+# ga_gns = gaia[idx[sep_constraint]]
 
-gns1_c = SkyCoord(l = gns1['l'], b = gns1['b'], 
-                    unit = 'degree', frame = 'galactic')
-gns2_c = SkyCoord(l = gns2['l'], b = gns2['b'], 
-                    unit = 'degree', frame = 'galactic')
-
-
-# %%
-# Driect alignemnet
-max_sep = 100*u.mas#!!!
-
-
-
-idx,d2d,d3d = gns2_c.match_to_catalog_sky(gns1_c,nthneighbor=1)# ,nthneighbor=1 is for 1-to-1 matchsep_constraint = d2d < max_sep
+idx,d2d,d3d = gns1_gal.match_to_catalog_sky(gaia_c)# ,nthneighbor=1 is for 1-to-1 match
 sep_constraint = d2d < max_sep
-gns2_m = gns2[sep_constraint]
-gns1_m = gns1[idx[sep_constraint]]
+gns_ga = gns1_m[sep_constraint]
+ga_gns = gaia[idx[sep_constraint]]
+
+
+d_pmx_ga = gns_ga['pm_x'] + ga_gns['pm_l']
+d_pmy_ga = gns_ga['pm_y'] - ga_gns['pm_b']
 
 
 
-# diff_H = gns2_m['H']-gns1_m['H']
-# off_s = np.mean(diff_H)
-# gns1_m['H'] = gns1_m['H'] + off_s
-# diff_H = gns2_m['H'] - gns1_m['H']
-
-# diff_H = gns2_m['H']-gns1_m['H']
-# sig_cl = 2
-# mask_H, l_lim,h_lim = sigma_clip(diff_H, sigma=sig_cl, masked = True, return_bounds= True)
-
-# gns2_m = gns2_m[mask_H.mask]
-# gns1_m = gns1_m[mask_H.mask]
-
-# fig,ax = plt.subplots(1,1)
-# ax.hist(diff_H, bins = 'auto',histtype = 'step')
-# ax.axvline(np.mean(diff_H), color = 'k', ls = 'dashed', label = 'H offset = %.2f\n$\sigma$ = %.2f'%(off_s,np.std(diff_H)))
-# ax.axvline(l_lim, ls = 'dashed', color ='r')
-# ax.axvline(h_lim, ls = 'dashed', color ='r')
-# ax.legend() 
-    
-xy_2 = np.array([gns2_m['x'],gns2_m['y']]).T
-xy_1 = np.array([gns1_m['x'],gns1_m['y']]).T
-
-
-
-N = 1
-if transf == 'polynomial':
-    p = ski.transform.estimate_transform(transf,
-                                        xy_1[::N], 
-                                        xy_2[::N], order = order_trans)
-else:    
-    p = ski.transform.estimate_transform(transf,
-                                    xy_1[::N], 
-                                    xy_2[::N])
-    
-print(p)
-
-xy_gn1 = np.array([gns1['x'],gns1['y']]).T
-xy_gn1_t = p(xy_gn1)
-
-gns1['x'] = xy_gn1_t[:,0]
-gns1['y'] = xy_gn1_t[:,1]    
-
-fig, ax = plt.subplots(1,1)
-ax.scatter(gns1['x'],gns1['y'])
-ax.scatter(gns2['x'],gns2['y'])
-   
-# sys.exit(285)
-# def alg_rel(gns_A, gns_B, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = None  ) :
-
-gns1 = alg_rel(gns1, gns2, 'Polywarp','no',max_deg = max_deg, d_m = d_m )
-
-l1_xy = np.array([gns1['x'],gns1['y']]).T
-l2_xy = np.array([gns2['x'],gns2['y']]).T
-l_12 = compare_lists(l1_xy,l2_xy,d_m)
-
-
-print(30*'*'+'\nComon stars after alignment:%s\n'%(len(l_12))+30*'*')
-gns1_m = gns1[l_12['ind_1']]
-gns2_m = gns2[l_12['ind_2']]
-
-
-
-dx = (gns2_m['x']- gns1_m['x'])
-dy = (gns2_m['y']- gns1_m['y'])
-
-pm_x = (dx)/dt.to(u.year)
-pm_y = (dy)/dt.to(u.year)
-# pm_l = (dl*mean_b)/dt.to(u.year)
-# pm_b = (db)/dt.to(u.year)
-
-sig_pm = 3
-m_pmx, l_pmx, h_pmx = sigma_clip(pm_x, sigma = sig_pm, masked = True, return_bounds= True)
-m_pmy, l_pmy, h_pmy = sigma_clip(pm_y, sigma = sig_pm, masked = True, return_bounds= True)
-# m_pml, l_pml, h_pml = sigma_clip(pm_l, sigma = sig_pm, masked = True, return_bounds= True)
-# m_pmb, l_pmb, h_pmb = sigma_clip(pm_b, sigma = sig_pm, masked = True, return_bounds= True)
-
-
-m_pm = np.logical_and(np.logical_not(m_pmx.mask),np.logical_not(m_pmy.mask))
-pm_xm = pm_x[m_pm]
-pm_ym = pm_y[m_pm]
-
-gns1_m = gns1_m[m_pm]
-gns1_m['pm_x']  = pm_xm
-gns1_m['pm_y']  = pm_ym
-
-bins = 'auto'
-# %%
 fig, (ax,ax2) = plt.subplots(1,2)
-ax.hist(pm_x, bins = bins, color = 'k', alpha = 0.2)
-ax2.hist(pm_y, bins = bins,color = 'k', alpha = 0.2)
-ax.hist(pm_xm, bins = bins, histtype = 'step', label = '$\overline{\mu}_{l}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_xm.value),np.std(pm_xm.value)))
-ax2.hist(pm_ym, bins = bins, histtype = 'step',label = '$\overline{\mu}_{b}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_ym.value),np.std(pm_ym.value)))
-ax.set_xlabel('$\Delta \mu_{l}$ [mas/yr]')
-ax2.set_xlabel('$\Delta\mu_{b}$ [mas/yr]')
+ax.hist(d_pmx_ga, bins = bins, color = 'k', alpha = 0.2)
+ax2.hist(d_pmy_ga, bins = bins,color = 'k', alpha = 0.2)
+ax.hist(d_pmx_ga, bins = bins, histtype = 'step', label = '$\overline{\mu}_{x}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmx_ga.value),np.std(d_pmx_ga.value)))
+ax2.hist(d_pmy_ga, bins = bins, histtype = 'step',label = '$\overline{\mu}_{y}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmy_ga.value),np.std(d_pmy_ga.value)))
+ax.set_xlabel('$\Delta \mu_{x}$ [mas/yr]')
+ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
 ax.axvline(l_pmx.value, ls = 'dashed', color = 'r')
 ax.axvline(h_pmy.value, ls = 'dashed', color = 'r')
 ax2.axvline(l_pmy.value, ls = 'dashed', color = 'r')
 ax2.axvline(h_pmy.value, ls = 'dashed', color = 'r')
 ax.legend()
 ax2.legend()
-
-
-# %%
-
-
 
 
 

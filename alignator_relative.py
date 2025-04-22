@@ -43,7 +43,7 @@ from grid import grid_stars
      aligned gns_A table
  """
 
-def alg_rel(gns_A, gns_B, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = None  ) :
+def alg_rel(gns_A, gns_B,col1, col2, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = None  ) :
     loop = 0
     deg = 1
     loop = 0
@@ -60,28 +60,28 @@ def alg_rel(gns_A, gns_B, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = 
         # ax.scatter(gns_A['l'], gns_A['b'])
         # ax.scatter(gns2_g['l'], gns2_g['b'],s =1, label = 'Grid stars')
         # ax.scatter(gns_A['x'], gns_A['y'])
-        ax.scatter(gns2_g['y'], gns2_g['x'],s =1, label = 'Grid stars')
+        ax.scatter(gns2_g[col2], gns2_g[col1],s =1, label = 'Grid stars')
         for xed in x_ed:
             ax.axhline(xed, color = 'red', ls = 'dashed')
         for yed in range(len(y_ed)):
             ax.axvline(y_ed[yed], color = 'red', ls = 'dashed', lw = 1)
         ax.legend(loc = 1)
         
-        l2_xy = np.array([gns2_g['x'],gns2_g['y']]).T
+        l2_xy = np.array([gns2_g[col1],gns2_g[col2]]).T
     else:
-        l2_xy = np.array([gns_B['x'],gns_B['y']]).T
+        l2_xy = np.array([gns_B[col1],gns_B[col2]]).T
     
     while deg < max_deg:
         loop += 1 
-        l1_xy = np.array([gns_A['x'],gns_A['y']]).T
+        l1_xy = np.array([gns_A[col1],gns_A[col2]]).T
         
         comp = compare_lists(l1_xy,l2_xy,d_m)
         if len(comom_ls) >1:
             # if comom_ls[-1] <= comom_ls[-2]:
             if comom_ls[-1] <= comom_ls[-2]:
                 try:
-                    gns_A['x'] = dic_xy[f'trans_{loop-2}'][:,0]
-                    gns_A['y'] = dic_xy[f'trans_{loop-2}'][:,1]
+                    gns_A[col1] = dic_xy[f'trans_{loop-2}'][:,0]
+                    gns_A[col2] = dic_xy[f'trans_{loop-2}'][:,1]
                     dic_xy_final['xy_deg%s'%(deg)] = np.array([dic_xy[f'trans_{loop-2}'][:,0],dic_xy[f'trans_{loop-2}'][:,1]]).T            
                     comom_ls =[]
                     dic_xy = {}
@@ -91,8 +91,8 @@ def alg_rel(gns_A, gns_B, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = 
                     loop = -1
                     continue
                 except:
-                    gns_A['x'] = dic_xy_final[f'xy_deg{deg-1}'][:,0]
-                    gns_A['y'] = dic_xy_final[f'xy_deg{deg-1}'][:,1]
+                    gns_A[col1] = dic_xy_final[f'xy_deg{deg-1}'][:,0]
+                    gns_A[col2] = dic_xy_final[f'xy_deg{deg-1}'][:,1]
                     print(f'Number of common star with polynomial degere {deg} decreases after a single iteration.\nUsing the last iteration of degree {deg -1} ')
                     deg = deg
                     break
@@ -148,8 +148,8 @@ def alg_rel(gns_A, gns_B, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = 
         
         
         
-        xy_1c = np.array([l1_clip['x'],l1_clip['y']]).T
-        xy_2c = np.array([l2_clip['x'],l2_clip['y']]).T
+        xy_1c = np.array([l1_clip[col1],l1_clip[col2]]).T
+        xy_2c = np.array([l2_clip[col1],l2_clip[col2]]).T
         
         if align_by == 'Polywarp':
             Kx,Ky=pw.polywarp(xy_2c[:,0],xy_2c[:,1],xy_1c[:,0],xy_1c[:,1],degree=deg)
@@ -159,8 +159,8 @@ def alg_rel(gns_A, gns_B, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = 
             
             for k in range(deg+1):
                         for m in range(deg+1):
-                            xi=xi+Kx[k,m]*gns_A['x']**k*gns_A['y']**m
-                            yi=yi+Ky[k,m]*gns_A['x']**k*gns_A['y']**m
+                            xi=xi+Kx[k,m]*gns_A[col1]**k*gns_A[col2]**m
+                            yi=yi+Ky[k,m]*gns_A[col1]**k*gns_A[col2]**m
         elif align_by == '2DPoly':
             model_x = Polynomial2D(degree=deg)
             model_y = Polynomial2D(degree=deg)
@@ -217,17 +217,17 @@ def alg_rel(gns_A, gns_B, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = 
                 
             # sys.exit(308)
             
-            xi = fit_xw(gns_A['x'], gns_A['y'])
-            yi = fit_yw(gns_A['x'], gns_A['y'])# Fit y-coordinates
+            xi = fit_xw(gns_A[col1], gns_A[col2])
+            yi = fit_yw(gns_A[col1], gns_A[col2])# Fit y-coordinates
             
         dic_xy[f'trans_{loop+1}'] = np.array([xi,yi]).T
         
         # print(Kx[0][0])
-        gns_A['x'] = xi
-        gns_A['y'] = yi
+        gns_A[col1] = xi
+        gns_A[col2] = yi
         if use_grid == 'yes':
-            check_2 = np.array([gns_A['x'],gns_A['y']]).T
-            check_1 = np.array([gns_B['x'],gns_B['y']]).T
+            check_2 = np.array([gns_A[col1],gns_A[col2]]).T
+            check_1 = np.array([gns_B[col1],gns_B[col2]]).T
             check = compare_lists(check_2, check_1, d_m)
             print(30*'-'+'\nTotal common stars (not only grid):%s\n'%(len(check))+30*'-')
     return gns_A    

@@ -32,7 +32,7 @@ from astropy.modeling import models, fitting
 from alignator_relative import alg_rel
 from astropy.time import Time
 from astroquery.gaia import Gaia
-
+import astroalign as aa
 from filters import filter_gaia_data
 # %% 
 # %%plotting parametres
@@ -170,29 +170,30 @@ buenos2 = (gns2['l']>min(gns1['l'])) & (gns2['l']<max(gns1['l'])) & (gns2['b']>m
 gns2 = gns2[buenos2]
 gns2['ID'] = np.arange(len(gns2))
 
-
-
-# =============================================================================
-#     if center_only == 'yes':
-#         center = np.where(gns1['H1'] - gns1['Ks1'] > 1.3)
-#     elif center_only == 'no':
-#         center = np.where(gns1['H1'] - gns1['Ks1']  > -1)
-#     
-#     # gns1_center = copy.deepcopy(gns1)
-#     gns1 = gns1[center] 
-# =============================================================================
-# %%
-
+# center = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
+center_1 = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
+center_2 = SkyCoord(l = np.mean(gns2['l']), b = np.mean(gns2['b']), unit = 'degree', frame = 'galactic')
 
 gns1_lb = SkyCoord(l = gns1['l'], b = gns1['b'], unit ='deg', frame = 'galactic')
 gns2_lb = SkyCoord(l = gns2['l'], b = gns2['b'], unit ='deg', frame = 'galactic')
 
-# gns1['x'] = gns1['x']*pix_scale
-# gns1['y'] = gns1['y']*pix_scale
-# gns2['x'] = gns2['x']*pix_scale
-# gns2['y'] = gns2['y']*pix_scale
+xg_1, yg_1 = center_1.spherical_offsets_to(gns1_lb)
+xg_2, yg_2 = center_2.spherical_offsets_to(gns2_lb)
 
-# 
+# %%
+# gns1['xl'] = xg_1.to(u.mas)
+# gns1['yl'] = yg_1.to(u.mas)
+# gns2['xl'] = xg_2.to(u.mas)
+# gns2['yl'] = yg_2.to(u.mas)
+# gns1['xl'] = xg_1
+# gns1['yl'] = yg_1
+# gns2['xl'] = xg_2
+# gns2['yl'] = yg_2
+gns1['xl'] = xg_1.to(u.arcsec)
+gns1['yl'] = yg_1.to(u.arcsec)
+gns2['xl'] = xg_2.to(u.arcsec)
+gns2['yl'] = yg_2.to(u.arcsec)
+
 #I cosider a math if the stars are less than 'max_sep' arcsec away 
 # This is for cutting the the overlapping areas of both lists. (Makes astroaling work faster)
 
@@ -201,26 +202,23 @@ sep_constraint = d2d < max_sep
 gns1_match = gns1[sep_constraint]
 gns2_match = gns2[idx[sep_constraint]]
 
-# =============================================================================
-# diff_H = gns1_match['H']-gns2_match['H']
-# mask_H, l_lim,h_lim = sigma_clip(diff_H, sigma=sig_cl, masked = True, return_bounds= True)
-# 
-# fig, (ax,ax2) = plt.subplots(1,2)
-# ax.set_title('Max_dis = %.2f". Matchs = %s'%(max_sep.value, len(gns2_match)))
-# ax.hist(diff_H, bins = 'auto')
-# ax.axvline(0.1, color = 'orange', ls = 'dashed')
-# ax.axvline(-0.1, color = 'orange', ls = 'dashed',label = r'$\pm$0.1H')
-# ax.axvline(l_lim, color = 'red', ls = 'dashed')
-# ax.axvline(h_lim, color = 'red', ls = 'dashed',label = r'$\pm %s\sigma$'%(sig_cl))
-# ax.legend()
-# ax.set_xlabel('diff [H]')
-# 
-# ax2.scatter(gns1['l'][::100],gns1['b'][::100], label = f'GNS1 {len(gns1)}')
-# ax2.scatter(gns2['l'][::100],gns2['b'][::100],s = 1,label = f'GNS2 {len(gns2)}')
-# ax2.axis('scaled')
-# ax2.legend()
-# =============================================================================
-# sys.exit(166)
+
+g1_m = np.array([gns1_match['xl'],gns1_match['yl']]).T
+g2_m = np.array([gns2_match['xl'],gns2_match['yl']]).T
+
+
+
+# g1_m = np.array([xg_1,yg_1]).T
+# g2_m = np.array([xg_2,yg_2]).T
+
+p,(_,_)= aa.find_transform(g1_m,g2_m,max_control_points=500)
+
+print("Translation: (x, y) = (%.2f, %.2f)"%(p.translation[0],p.translation[1]))
+print("Rotation: %.2f deg"%(p.rotation * 180.0/np.pi)) 
+print("Rotation: %.0f arcmin"%(p.rotation * 180.0/np.pi*60)) 
+print("Rotation: %.0f arcsec"%(p.rotation * 180.0/np.pi*3600)) 
+
+sys.exit(210)
 # %%
 
 loop = 0
@@ -231,8 +229,6 @@ dic_xy_final = {}
 
 xy_1c = np.array((gns1_match['x'], gns1_match['y'])).T
 xy_2c = np.array((gns2_match['x'], gns2_match['y'])).T
-# xy_1c = np.array((gns1_match['x'][np.logical_not(mask_H.mask)], gns1_match['y'][np.logical_not(mask_H.mask)])).T
-# xy_2c = np.array((gns2_match['x'][np.logical_not(mask_H.mask)], gns2_match['y'][np.logical_not(mask_H.mask)])).T
 
 # sys.exit(184)
 # %%
@@ -245,7 +241,7 @@ p = ski.transform.estimate_transform(int_trans,
 #                                                   xy_1c, 
 #                                                   xy_2c, order = deg_t)
     
-gns1_xy = np.array((gns1['x'],gns1['y'])).T
+gns1_xy = np.array((gns1['xl'],gns1['yl'])).T
 gns1_xyt = p(gns1_xy)
 
 s_ls = compare_lists(gns1_xyt, np.array([gns2['x'],gns2['y']]).T, d_m)
@@ -262,13 +258,13 @@ ax.legend(fontsize = 9, loc = 1)
 
 # ax.set_xlim(2000,2300)
 # %%
-# sys.exit(202)
-
 
 # gns1.write(pruebas1 + 'gns1_trans.txt', format = 'ascii', overwrite = True)
 # gns2.write(pruebas2 + 'gns2_trans.txt', format = 'ascii',overwrite = True)
 
-gns1 = alg_rel(gns1, gns2, 'Polywarp',use_grid,max_deg = max_deg, d_m = d_m )
+gns1 = alg_rel(gns1, gns2,'x', 'y', 'Polywarp',use_grid,max_deg = max_deg, d_m = d_m )
+
+sys.exit(202) 
 # %%
 l1_xy = np.array([gns1['x'],gns1['y']]).T
 l2_xy = np.array([gns2['x'],gns2['y']]).T

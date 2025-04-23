@@ -95,12 +95,6 @@ else:
 
 dt = t2 - t1
 
-int_trans = 'affine'
-# int_trans = 'similarity'
-# int_trans = 'polynomial'
-
-
-
 # sys.exit(87)
 # for chip_one in range(1,2,1):
 
@@ -116,26 +110,27 @@ pix_scale = 0.1064*0.5
 # pix_scale = 0.1064
 # max_sig = 0.3#TODO
 
-max_sig = 0.1
+max_sig = 0.005
 # max_sig = 2
 use_grid = 'yes'
-max_sep = 50* u.mas
-sig_cl = 3e10#!!!
+grid_s = 350
+
+# use_grid = 'no'
+max_sep = 50* u.mas# firts match gns1 to gns2 for astroaling
+max_sep_ga = 50*u.mas# separation for comparison with gaia
+sig_cl = 3#!!!
 deg = 1#!!!
-deg_t = 1#!!! Degree for the initial transform
-max_deg = 2
-d_m_mas = 50#!!!in mas, max distance for the fine alignment betwenn GNS1 and 2
-d_m_pm_mas = 150#!!! in mas, max distance for the proper motions
-d_m = d_m_mas/(pix_scale*1000)#!!! in pix, max distance for the fine alignment betwenn GNS1 and 2
-d_m_pm = d_m_pm_mas/(pix_scale*1000)#!!! in pix, max distance for the proper motions
+max_deg =4
+d_m = 0.05#!!!in arcse, max distance for the fine alignment betwenn GNS1 and 2
+d_m_pm = 0.200#!!! in arcs, max distance for the proper motions
 
-# print(d_m, d_m_pm)
-# sys.exit()
+destination = 1 #!!! GNS1 is reference
+# destination = 2 #!!! GNS2 is reference
 
-# align_by = 'Polywarp'#!!!
-align_by = '2DPoly'#!!!
-# f_mode = 'W'
-f_mode = 'WnC'
+align_by = 'Polywarp'#!!!
+# align_by = '2DPoly'#!!!
+f_mode = 'W' # f_mode only useful for 2Dpoly
+# f_mode = 'WnC'
 # f_mode = 'NW'
 # f_mode = 'NWnC'
 GNS_1='/Users/amartinez/Desktop/PhD/HAWK/GNS_1/lists/%s/chip%s/'%(field_one, chip_one)
@@ -148,8 +143,8 @@ pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2absolute_SUPER/pruebas/'
 gns1 = Table.read(GNS_1 + 'stars_calibrated_H_chip%s.ecsv'%(chip_one),  format = 'ascii.ecsv')
 gns2 = Table.read(GNS_2 + 'stars_calibrated_H_chip%s.ecsv'%(chip_two), format = 'ascii.ecsv')
 
-m_mask = gns1['H']<19
-gns1 = gns1[m_mask]
+# m_mask = (gns1['H']>14) & (gns1['H']<17)
+# gns1 = gns1[m_mask]
 
 unc_cut1 = (gns1['sl']<max_sig) & (gns1['sb']<max_sig)
 gns1 = gns1[unc_cut1]
@@ -181,18 +176,11 @@ xg_1, yg_1 = center_1.spherical_offsets_to(gns1_lb)
 xg_2, yg_2 = center_2.spherical_offsets_to(gns2_lb)
 
 # %%
-# gns1['xl'] = xg_1.to(u.mas)
-# gns1['yl'] = yg_1.to(u.mas)
-# gns2['xl'] = xg_2.to(u.mas)
-# gns2['yl'] = yg_2.to(u.mas)
-# gns1['xl'] = xg_1
-# gns1['yl'] = yg_1
-# gns2['xl'] = xg_2
-# gns2['yl'] = yg_2
-gns1['xl'] = xg_1.to(u.arcsec)
-gns1['yl'] = yg_1.to(u.arcsec)
-gns2['xl'] = xg_2.to(u.arcsec)
-gns2['yl'] = yg_2.to(u.arcsec)
+#
+gns1['xg'] = xg_1.to(u.arcsec)
+gns1['yg'] = yg_1.to(u.arcsec)
+gns2['xg'] = xg_2.to(u.arcsec)
+gns2['yg'] = yg_2.to(u.arcsec)
 
 #I cosider a math if the stars are less than 'max_sep' arcsec away 
 # This is for cutting the the overlapping areas of both lists. (Makes astroaling work faster)
@@ -203,82 +191,89 @@ gns1_match = gns1[sep_constraint]
 gns2_match = gns2[idx[sep_constraint]]
 
 
-g1_m = np.array([gns1_match['xl'],gns1_match['yl']]).T
-g2_m = np.array([gns2_match['xl'],gns2_match['yl']]).T
+g1_m = np.array([gns1_match['xg'],gns1_match['yg']]).T
+g2_m = np.array([gns2_match['xg'],gns2_match['yg']]).T
 
-
-
-# g1_m = np.array([xg_1,yg_1]).T
-# g2_m = np.array([xg_2,yg_2]).T
-
-p,(_,_)= aa.find_transform(g1_m,g2_m,max_control_points=500)
-
-print("Translation: (x, y) = (%.2f, %.2f)"%(p.translation[0],p.translation[1]))
-print("Rotation: %.2f deg"%(p.rotation * 180.0/np.pi)) 
-print("Rotation: %.0f arcmin"%(p.rotation * 180.0/np.pi*60)) 
-print("Rotation: %.0f arcsec"%(p.rotation * 180.0/np.pi*3600)) 
-
-sys.exit(210)
-# %%
-
-loop = 0
-comom_ls = []
-dic_xy = {}
-dic_Kx ={}
-dic_xy_final = {}
-
-xy_1c = np.array((gns1_match['x'], gns1_match['y'])).T
-xy_2c = np.array((gns2_match['x'], gns2_match['y'])).T
-
-# sys.exit(184)
-# %%
-p = ski.transform.estimate_transform(int_trans,
-                                              xy_1c, 
-                                              xy_2c)
-# %%
-# if int_trans == 'polynomial':
-#     p = ski.transform.estimate_transform(int_trans,
-#                                                   xy_1c, 
-#                                                   xy_2c, order = deg_t)
+if destination == 1:
+    # Time lapse to move Gaia Stars.
+    tg = Time(['2016-01-01T00:00:00'],scale='utc')
+    dtg = t1 - tg
     
-gns1_xy = np.array((gns1['xl'],gns1['yl'])).T
-gns1_xyt = p(gns1_xy)
+    p,(_,_)= aa.find_transform(g2_m,g1_m,max_control_points=100)
+    
+    print("Translation: (x, y) = (%.2f, %.2f)"%(p.translation[0],p.translation[1]))
+    print("Rotation: %.2f deg"%(p.rotation * 180.0/np.pi)) 
+    print("Rotation: %.0f arcmin"%(p.rotation * 180.0/np.pi*60)) 
+    print("Rotation: %.0f arcsec"%(p.rotation * 180.0/np.pi*3600)) 
+    
+    
+    # %%
+    
+    loop = 0
+    comom_ls = []
+    dic_xy = {}
+    dic_Kx ={}
+    dic_xy_final = {}
+    
+        
+    gns2_xy = np.array((gns2['xg'],gns2['yg'])).T
+    gns2_xyt = p(gns2_xy)
+    
+    s_ls = compare_lists(gns2_xyt, np.array([gns1['xg'],gns1['yg']]).T, d_m)
+    print(f'Common stars after astroaling similaryty:{len(s_ls)}')
+    
+    gns2['xg'] = gns2_xyt[:,0]
+    gns2['yg'] = gns2_xyt[:,1]
+    
+    
+    gns2 = alg_rel(gns2, gns1,'xg', 'yg', align_by,use_grid,max_deg = max_deg, d_m = d_m,f_mode = f_mode,grid_s = grid_s )
 
-s_ls = compare_lists(gns1_xyt, np.array([gns2['x'],gns2['y']]).T, d_m)
-gns1['x'] = gns1_xyt[:,0]
-gns1['y'] = gns1_xyt[:,1]
+if destination == 2:
+    # Time lapse to move Gaia Stars.
+    tg = Time(['2016-01-01T00:00:00'],scale='utc')
+    dtg = t2 - tg
+    
+    p,(_,_)= aa.find_transform(g1_m,g2_m,max_control_points=100)
+    
+    print("Translation: (x, y) = (%.2f, %.2f)"%(p.translation[0],p.translation[1]))
+    print("Rotation: %.2f deg"%(p.rotation * 180.0/np.pi)) 
+    print("Rotation: %.0f arcmin"%(p.rotation * 180.0/np.pi*60)) 
+    print("Rotation: %.0f arcsec"%(p.rotation * 180.0/np.pi*3600)) 
+    
+    loop = 0
+    comom_ls = []
+    dic_xy = {}
+    dic_Kx ={}
+    dic_xy_final = {}
+    
+        
+    gns1_xy = np.array((gns1['xg'],gns1['yg'])).T
+    gns1_xyt = p(gns1_xy)
+    
+    s_ls = compare_lists(gns1_xyt, np.array([gns2['xg'],gns2['yg']]).T, d_m)
+    print(f'Common stars after astroaling similaryty:{len(s_ls)}')
+    
+    gns1['xg'] = gns1_xyt[:,0]
+    gns1['yg'] = gns1_xyt[:,1]
+    
+    
+    gns1 = alg_rel(gns1, gns2,'xg', 'yg', align_by,use_grid,max_deg = max_deg, d_m = d_m,f_mode = f_mode,grid_s= grid_s )
 
-fig, ax = plt.subplots(1,1)
-ax.scatter(gns2['x'],gns2['y'],s=10, color = 'k', alpha = 0.1,label = 'GNS2')
-ax.scatter(xy_1c[:,0],xy_1c[:,1], marker = 'x',label = 'GNS1 matched')
-ax.scatter(gns1_xyt[:,0],gns1_xyt[:,1],marker = 'x',color = 'r',label = 'GNS1 transformed')
-ax.scatter(xy_2c[:,0],xy_2c[:,1],s=10, label = 'GNS2 matched')
-ax.legend(fontsize = 9, loc = 1) 
-
-
-# ax.set_xlim(2000,2300)
+# sys.exit(202) 
 # %%
-
-# gns1.write(pruebas1 + 'gns1_trans.txt', format = 'ascii', overwrite = True)
-# gns2.write(pruebas2 + 'gns2_trans.txt', format = 'ascii',overwrite = True)
-
-gns1 = alg_rel(gns1, gns2,'x', 'y', 'Polywarp',use_grid,max_deg = max_deg, d_m = d_m )
-
-sys.exit(202) 
-# %%
-l1_xy = np.array([gns1['x'],gns1['y']]).T
-l2_xy = np.array([gns2['x'],gns2['y']]).T
+l1_xy = np.array([gns1['xg'],gns1['yg']]).T
+l2_xy = np.array([gns2['xg'],gns2['yg']]).T
 l_12 = compare_lists(l1_xy,l2_xy,d_m_pm)
 
 
-print(30*'*'+'\nComon stars after alignment:%s\n'%(len(l_12))+30*'*')
+print(30*'*'+'\nComon stars to be use for pm calculation :%s\n'%(len(l_12))+30*'*')
 gns1_m = gns1[l_12['ind_1']]
 gns2_m = gns2[l_12['ind_2']]
 
 
 
-dx = (gns2_m['x'].value- gns1_m['x'].value)*pix_scale*1000
-dy = (gns2_m['y'].value- gns1_m['y'].value)*pix_scale*1000
+dx = (gns2_m['xg'].value- gns1_m['xg'].value)*1000
+dy = (gns2_m['yg'].value- gns1_m['yg'].value)*1000
 
 pm_x = (dx*u.mas)/dt.to(u.year)
 pm_y = (dy*u.mas)/dt.to(u.year)
@@ -286,8 +281,8 @@ pm_y = (dy*u.mas)/dt.to(u.year)
 # pm_b = (db)/dt.to(u.year)
 
 sig_pm = 3
-m_pmx, l_pmx, h_pmx = sigma_clip(pm_x, sigma = sig_pm, masked = True, return_bounds= True)
-m_pmy, l_pmy, h_pmy = sigma_clip(pm_y, sigma = sig_pm, masked = True, return_bounds= True)
+m_pmx, l_pmx, h_pmx = sigma_clip(pm_x, sigma = sig_pm, masked = True, return_bounds= True, maxiters=50)
+m_pmy, l_pmy, h_pmy = sigma_clip(pm_y, sigma = sig_pm, masked = True, return_bounds= True, maxiters=50)
 # m_pml, l_pml, h_pml = sigma_clip(pm_l, sigma = sig_pm, masked = True, return_bounds= True)
 # m_pmb, l_pmb, h_pmb = sigma_clip(pm_b, sigma = sig_pm, masked = True, return_bounds= True)
 
@@ -308,6 +303,7 @@ gns2_m['pm_y']  = pm_ym
 bins = 'auto'
 # %
 fig, (ax,ax2) = plt.subplots(1,2)
+ax2.set_title(f'Refenrence epoch GNS{destination}')
 ax.hist(pm_x, bins = bins, color = 'k', alpha = 0.2)
 ax2.hist(pm_y, bins = bins,color = 'k', alpha = 0.2)
 ax.hist(pm_xm, bins = bins, histtype = 'step', label = '$\overline{\mu}_{x}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_xm.value),np.std(pm_xm.value)))
@@ -322,7 +318,18 @@ ax.legend()
 ax2.legend()
 
 
+# %% Gaia Comparation
+
+
+fig, (ax,ax2) = plt.subplots(1,2)
+ax.scatter(gns1_m['H'],gns1_m['sl'],s=1, alpha = 0.1)
+# ax.hist2d(gns1_m['H'],gns1_m['sl'])
+ax2.scatter(gns1_m['H'],gns1_m['sb'], s=1)
 # %%
+# Before comparing witg Gaia we mask the best pms
+m_for_g = (gns1_m['H']>12) & (gns1_m['H']<16)
+gns1_m = gns1_m[m_for_g]
+
 
 radius = abs(np.min(gns1['l'])-np.max(gns1['l']))*0.6*u.degree
 center_g = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
@@ -341,15 +348,15 @@ except:
     gaia = j.get_results()
     gaia.write(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value))
 
-e_pm = 0.5
+e_pm = 0.3
 gaia = filter_gaia_data(
     gaia_table=gaia,
     astrometric_params_solved=31,
     duplicated_source= False,
     parallax_over_error_min=-10,
     astrometric_excess_noise_sig_max=2,
-    phot_g_mean_mag_min= None,
-    phot_g_mean_mag_max=13 ,
+    phot_g_mean_mag_min= 16,
+    phot_g_mean_mag_max=13,
     pm_min=0,
     pmra_error_max=e_pm,
     pmdec_error_max=e_pm
@@ -358,20 +365,17 @@ gaia = filter_gaia_data(
 
 
 
-tg = Time(['2016-01-01T00:00:00'],scale='utc')
 
-
-dtg = t1 - tg
 
 # g_gpm = SkyCoord(ra = gaia['ra'], dec = gaia['dec'], pm_ra_cosdec = gaia['pmra'].value*u.mas/u.yr, pm_dec = ['pmdec'].value*u.mas/u.yr, obstime = 'J2016', equinox = 'J2000', frame = 'fk5')
 ga_gpm = SkyCoord(ra = gaia['ra'], dec = gaia['dec'], pm_ra_cosdec = gaia['pmra'],
                  pm_dec = gaia['pmdec'], obstime = 'J2016', 
-                 equinox = 'J2000', frame = 'fk5').galactic
+                 equinox = 'J2000', frame = 'icrs').galactic
 
 
 l_off,b_off = center_g.spherical_offsets_to(ga_gpm.frame)
-l_offt = l_off.to(u.mas) + (ga_gpm.pm_l_cosb)*dtg.to(u.yr)
-b_offt = b_off.to(u.mas) + (ga_gpm.pm_b)*dtg.to(u.yr)
+l_offt = l_off + (ga_gpm.pm_l_cosb)*dtg.to(u.yr)
+b_offt = b_off + (ga_gpm.pm_b)*dtg.to(u.yr)
 
 ga_gtc = center_g.spherical_offsets_by(l_offt, b_offt)
 
@@ -399,13 +403,33 @@ gns1_gal = SkyCoord(l = gns1_m['l'], b = gns1_m['b'],
 
 
 
+
+
+
+
+# %
+
+
+# idx,d2d,d3d = gns2_gal.match_to_catalog_sky(gaia_c)# ,nthneighbor=1 is for 1-to-1 match
+# sep_constraint = d2d < max_sep
+# gns_ga = gns2_m[sep_constraint]
+# ga_gns = gaia[idx[sep_constraint]]
+
+idx,d2d,d3d = gns1_gal.match_to_catalog_sky(gaia_c)# ,nthneighbor=1 is for 1-to-1 match
+sep_constraint = d2d < max_sep_ga
+gns_ga = gns1_m[sep_constraint]
+ga_gns = gaia[idx[sep_constraint]]
+
+
 l2 = gns2_gal.l.wrap_at('360d')
 l1 = gns1_gal.l.wrap_at('360d')
 
+
 fig, ax = plt.subplots(1,1,figsize =(10,10))
-ax.scatter(l1[::10], gns1_m['b'][::10],label = 'GNS_1 Fied %s, chip %s'%(field_one,chip_one))
-ax.scatter(l2[::10],  gns2_m['b'][::10],s = 1, label = 'GNS_2 Fied %s, chip %s'%(field_two,chip_two))
-ax.scatter(ga_l,gaia['b'], label = f'Gaia stars = {len(gaia)}')
+ax.scatter(l1[::1], gns1_m['b'][::1],label = 'GNS_1 Fied %s, chip %s'%(field_one,chip_one))
+# ax.scatter(l2[::10],  gns2_m['b'][::10], label = 'GNS_2 Fied %s, chip %s'%(field_two,chip_two))
+ax.scatter(ga_l,gaia['b'], color = 'k',label = f'Gaia stars = {len(gaia)}')
+ax.scatter(ga_gns['l'],ga_gns['b'], color = 'r',s =100,label = f'Gaia comp pm = {len(ga_gns)}')
 ax.invert_xaxis()
 ax.legend()
 ax.set_xlabel('l[ deg]', fontsize = 10)
@@ -413,36 +437,35 @@ ax.set_ylabel('b [deg]', fontsize = 10)
 # ax.axis('scaled')
 ax.set_ylim(min(gaia['b']),max(gaia['b']))
 
-# %
-
-max_sep = 80*u.mas
-# idx,d2d,d3d = gns2_gal.match_to_catalog_sky(gaia_c)# ,nthneighbor=1 is for 1-to-1 match
-# sep_constraint = d2d < max_sep
-# gns_ga = gns2_m[sep_constraint]
-# ga_gns = gaia[idx[sep_constraint]]
-
-idx,d2d,d3d = gns1_gal.match_to_catalog_sky(gaia_c)# ,nthneighbor=1 is for 1-to-1 match
-sep_constraint = d2d < max_sep
-gns_ga = gns1_m[sep_constraint]
-ga_gns = gaia[idx[sep_constraint]]
 
 
-d_pmx_ga = gns_ga['pm_x'] + ga_gns['pm_l']
+d_pmx_ga = gns_ga['pm_x'] - ga_gns['pm_l']
+
 d_pmy_ga = gns_ga['pm_y'] - ga_gns['pm_b']
+
+sig_pm = 3
+m_pmx, lx, hx= sigma_clip(d_pmx_ga, sigma = sig_pm, masked = True, return_bounds= True, maxiters=50)
+m_pmy, ly, hy= sigma_clip(d_pmy_ga, sigma = sig_pm, masked = True, return_bounds= True, maxiters=50)
+
+m_pm = np.logical_and(np.logical_not(m_pmx.mask),np.logical_not(m_pmy.mask))
+d_pmx_ga_m = d_pmx_ga[m_pm]
+d_pmy_ga_m = d_pmy_ga[m_pm]
 
 
 
 fig, (ax,ax2) = plt.subplots(1,2)
+ax.set_title(f'Gaia stars = {len(d_pmx_ga_m)}')
+ax2.set_title(f'Refenrence epoch GNS{destination}')
 ax.hist(d_pmx_ga, bins = bins, color = 'k', alpha = 0.2)
 ax2.hist(d_pmy_ga, bins = bins,color = 'k', alpha = 0.2)
-ax.hist(d_pmx_ga, bins = bins, histtype = 'step', label = '$\overline{\mu}_{x}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmx_ga.value),np.std(d_pmx_ga.value)))
-ax2.hist(d_pmy_ga, bins = bins, histtype = 'step',label = '$\overline{\mu}_{y}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmy_ga.value),np.std(d_pmy_ga.value)))
+ax.hist(d_pmx_ga_m, bins = bins, histtype = 'step', label = '$\overline{\mu}_{x}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmx_ga_m.value),np.std(d_pmx_ga_m.value)))
+ax2.hist(d_pmy_ga_m, bins = bins, histtype = 'step',label = '$\overline{\mu}_{y}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmy_ga_m.value),np.std(d_pmy_ga_m.value)))
 ax.set_xlabel('$\Delta \mu_{x}$ [mas/yr]')
 ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
-ax.axvline(l_pmx.value, ls = 'dashed', color = 'r')
-ax.axvline(h_pmy.value, ls = 'dashed', color = 'r')
-ax2.axvline(l_pmy.value, ls = 'dashed', color = 'r')
-ax2.axvline(h_pmy.value, ls = 'dashed', color = 'r')
+ax.axvline(lx, ls = 'dashed', color = 'r')
+ax.axvline(hx, ls = 'dashed', color = 'r')
+ax2.axvline(ly, ls = 'dashed', color = 'r')
+ax2.axvline(hy, ls = 'dashed', color = 'r')
 ax.legend()
 ax2.legend()
 

@@ -3,7 +3,7 @@ from astropy.table import Table, vstack
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
-def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size=50, isolation_radius=0.5):
+def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolation_radius=0.5):
     """
     Selects isolated stars from an Astropy Table within specified magnitude limits and spatial isolation criteria.
 

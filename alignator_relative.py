@@ -54,18 +54,16 @@ def alg_rel(gns_A, gns_B,col1, col2, align_by,use_grid,max_deg,d_m,grid_s = None
     dic_xy_final = {}
     if use_grid == 'yes':
         # def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size=50, isolation_radius=0.5):
-        gns2_g, x_ed, y_ed = grid_stars(gns_B,'x','y','H',12,18,grid_size=20,isolation_radius=0.7)
-        print(y_ed)
+        gns2_g, x_ed, y_ed = grid_stars(gns_B,'xg','yg','H',12,16,grid_size=grid_s,isolation_radius=0.7)
+        
         fig, ax = plt.subplots(1,1)
-        # ax.scatter(gns_A['l'], gns_A['b'])
-        # ax.scatter(gns2_g['l'], gns2_g['b'],s =1, label = 'Grid stars')
-        # ax.scatter(gns_A['x'], gns_A['y'])
+       
         ax.scatter(gns2_g[col2], gns2_g[col1],s =1, label = 'Grid stars')
-        for xed in x_ed:
-            ax.axhline(xed, color = 'red', ls = 'dashed')
-        for yed in range(len(y_ed)):
-            ax.axvline(y_ed[yed], color = 'red', ls = 'dashed', lw = 1)
-        ax.legend(loc = 1)
+        # for xed in x_ed:
+        #     ax.axhline(xed, color = 'red', ls = 'dashed')
+        # for yed in range(len(y_ed)):
+        #     ax.axvline(y_ed[yed], color = 'red', ls = 'dashed', lw = 1)
+        # ax.legend(loc = 1)
         
         l2_xy = np.array([gns2_g[col1],gns2_g[col2]]).T
     else:

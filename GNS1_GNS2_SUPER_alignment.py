@@ -91,7 +91,7 @@ pix_scale = 0.1064*0.5
 # pix_scale = 0.1064
 
 use_grid = 'no'
-max_sep = 50* u.mas
+max_sep = 100* u.mas
 sig_cl = 3e10#!!!
 deg = 1#!!!
 deg_t = 1#!!! Degree for the initial transform

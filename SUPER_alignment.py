@@ -114,11 +114,11 @@ center_only = 'no'
 pix_scale = 0.1064*0.5
 # pix_scale = 0.1064
 # max_sig = 0.3#TODO
-e_pm = 0.3#!!! Maximun error in pm for Gaia stars
-gaia_mags = [0, 100]#!!! Gaia mag limtis for comparison with GNS
+e_pm = 0.1#!!! Maximun error in pm for Gaia stars
+gaia_mags = [0, 17]#!!! Gaia mag limtis for comparison with GNS
 max_sep_ga = 50*u.mas# separation for comparison with gaia
 
-max_loop = 10
+max_loop = 0
 gns_mags = [0,20]#!!! GNS mag limtis for comparison with Gaia
 max_sig = 0.005
 # max_sig = 2
@@ -127,18 +127,18 @@ use_grid = 'no'
 grid_s = 700
 bad_lim = -0.7#!!! weird offset in Delat H between GNS 1 and 2
 # use_grid = 'no'
-max_sep = 50* u.mas# firts match gns1 to gns2 for astroaling
+max_sep = 30* u.mas# firts match gns1 to gns2 for astroaling
 sig_cl = 3#!!!
-max_deg =5
-d_m = 80*u.mas#!!!in arcse, max distance for the fine alignment betwenn GNS1 and 2
+max_deg =2
+d_m = 20*u.mas#!!!in arcse, max distance for the fine alignment betwenn GNS1 and 2
 d_m_pm = 0.300#!!! in arcs, max distance for the proper motions
 destination = 1 #!!! GNS1 is reference
 # destination = 2 #!!! GNS2 is reference
-align_by = 'Polywarp'#!!!
-# align_by = '2DPoly'#!!!
-f_mode = 'W' # f_mode only useful for 2Dpoly
+# align_by = 'Polywarp'#!!!
+align_by = '2DPoly'#!!!
+# f_mode = 'W' # f_mode only useful for 2Dpoly
 # f_mode = 'WnC'
-# f_mode = 'NW'
+f_mode = 'NW'
 # f_mode = 'NWnC'
 
 def sig_f(x, y,s):
@@ -178,23 +178,35 @@ buenos2 = (gns2['l']>min(gns1['l'])) & (gns2['l']<max(gns1['l'])) & (gns2['b']>m
 gns2 = gns2[buenos2]
 gns2['ID'] = np.arange(len(gns2))
 
-# center = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
-center_1 = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
-center_2 = SkyCoord(l = np.mean(gns2['l']), b = np.mean(gns2['b']), unit = 'degree', frame = 'galactic')
+center = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
+# center_1 = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
+# center_2 = SkyCoord(l = np.mean(gns2['l']), b = np.mean(gns2['b']), unit = 'degree', frame = 'galactic')
 
 gns1_lb = SkyCoord(l = gns1['l'], b = gns1['b'], unit ='deg', frame = 'galactic')
 gns2_lb = SkyCoord(l = gns2['l'], b = gns2['b'], unit ='deg', frame = 'galactic')
 
-xg_1, yg_1 = center_1.spherical_offsets_to(gns1_lb)
-xg_2, yg_2 = center_2.spherical_offsets_to(gns2_lb)
+xg_1, yg_1 = center.spherical_offsets_to(gns1_lb)
+xg_2, yg_2 = center.spherical_offsets_to(gns2_lb)
+
+tag = center.skyoffset_frame()
+
+gns1_t = gns1_lb.transform_to(tag)
+gns2_t = gns2_lb.transform_to(tag)
+
+
+gns1['xp'] = gns1_t.lon.to(u.arcsec)
+gns1['yp'] = gns1_t.lat.to(u.arcsec)
+gns2['xp'] = gns2_t.lon.to(u.arcsec)
+gns2['yp'] = gns2_t.lat.to(u.arcsec)
+
+# gns1['xp'] = xg_1.to(u.arcsec)
+# gns1['yp'] = yg_1.to(u.arcsec)
+# gns2['xp'] = xg_2.to(u.arcsec)
+# gns2['yp'] = yg_2.to(u.arcsec)
+
+
 
 # %%
-#
-gns1['xp'] = xg_1.to(u.arcsec)
-gns1['yp'] = yg_1.to(u.arcsec)
-gns2['xp'] = xg_2.to(u.arcsec)
-gns2['yp'] = yg_2.to(u.arcsec)
-
 #I cosider a math if the stars are less than 'max_sep' arcsec away 
 # This is for cutting the the overlapping areas of both lists. (Makes astroaling work faster)
 
@@ -229,10 +241,11 @@ ax.legend()
 
 
 fig,ax = plt.subplots()
+ax.set_title(f'Common GNS2 F{field_two} GNS1 {field_one}. Max sep = {max_sep}')
 ax.scatter(gns1_match['l'],gns1_match['b'])
 ax.scatter(gns1_match['l'][bad_H],gns1_match['b'][bad_H], label = 'Malas')
 ax.legend()
-sys.exit(212)
+# sys.exit(212)
 # %%
 g1_m = np.array([gns1_match['xp'],gns1_match['yp']]).T
 g2_m = np.array([gns2_match['xp'],gns2_match['yp']]).T
@@ -271,7 +284,7 @@ if destination == 1:
     
     # gns2 = alg_rel(gns2, gns1,'xp', 'yp', align_by,use_grid,max_deg = max_deg, d_m = d_m,f_mode = f_mode,grid_s = grid_s )
     # def alg_loop(gns_A, gns_B,col1, col2, align_by, max_deg, d_m,                        max_loop,  use_grid,grid_s= None, f_mode = None  ) :
-    gns2 = alg_loop(gns2, gns1, 'xp', 'yp', align_by, max_deg, d_m.to(u.arcsec).value, max_loop, use_grid ='no')
+    gns2 = alg_loop(gns2, gns1, 'xp', 'yp', align_by, max_deg, d_m.to(u.arcsec).value, max_loop, use_grid ='no', f_mode = f_mode)
 
 if destination == 2:
     # Time lapse to move Gaia Stars.
@@ -396,6 +409,28 @@ except:
     gaia.write(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value))
 
 
+# Step 1: Gaia proper motion as SkyCoord
+c_gaia = SkyCoord(ra=gaia['ra'], dec=gaia['dec'],
+                  pm_ra_cosdec=gaia['pmra'],
+                  pm_dec=gaia['pmdec'],
+                  obstime="J2016")
+
+# Step 2: Convert to Cartesian offset using the tangent-plane projection
+# Use a fixed reference point (e.g., center of your field)
+# ref = SkyCoord(ra0*u.deg, dec0*u.deg)
+# center = SkyCoord(ra=265.75405671 * u.deg, dec=-28.66946795 * u.deg, frame='icrs')
+offset_frame = center.skyoffset_frame()
+
+c_proj = c_gaia.transform_to(offset_frame)
+
+# Step 3: Extract Gaia PM in tangent plane (same as your XY frame, in mas/yr)
+pm_x_gaia = c_proj.pm_lon_coslat.value  # mas/yr
+pm_y_gaia = c_proj.pm_lat.value         # mas/yr
+
+gaia['pm_x'] = pm_x_gaia
+gaia['pm_y'] = pm_y_gaia
+
+
 gaia = filter_gaia_data(
     gaia_table=gaia,
     astrometric_params_solved=31,
@@ -481,11 +516,44 @@ ax.set_ylabel('b [deg]', fontsize = 10)
 ax.set_ylim(min(gaia['b']),max(gaia['b']))
 
 
+# =============================================================================
+# 
+# d_pmx_ga = gns_ga['pm_x'] - ga_gns['pm_l']
+# d_pmy_ga = gns_ga['pm_y'] - ga_gns['pm_b']
+# # d_pmx_ga = gns_ga['pm_x'] - ga_gns['pmra']
+# # d_pmy_ga = gns_ga['pm_y'] - ga_gns['pmdec']
+# 
+# 
+# 
+# m_pm, lxy = sig_f(d_pmx_ga, d_pmy_ga, 3)
+# 
+# 
+# d_pmx_ga_m = d_pmx_ga[m_pm]
+# d_pmy_ga_m = d_pmy_ga[m_pm]
+# 
+# 
+# 
+# fig, (ax,ax2) = plt.subplots(1,2)
+# ax.set_title(f'Gaia stars = {len(d_pmx_ga_m)}, Degree = {max_deg-1}', fontsize= 15)
+# ax2.set_title(f'Ref. epoch GNS{destination}', fontsize = 15)
+# ax.hist(d_pmx_ga, bins = bins, color = 'k', alpha = 0.2)
+# ax2.hist(d_pmy_ga, bins = bins,color = 'k', alpha = 0.2)
+# ax.hist(d_pmx_ga_m, bins = bins, histtype = 'step', label = '$\overline{\mu}_{x}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmx_ga_m.value),np.std(d_pmx_ga_m.value)))
+# ax2.hist(d_pmy_ga_m, bins = bins, histtype = 'step',label = '$\overline{\mu}_{y}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmy_ga_m.value),np.std(d_pmy_ga_m.value)))
+# ax.set_xlabel('$\Delta \mu_{x}$ [mas/yr]')
+# ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
+# ax.axvline(lxy[0], ls = 'dashed', color = 'r')
+# ax.axvline(lxy[1], ls = 'dashed', color = 'r')
+# ax2.axvline(lxy[2], ls = 'dashed', color = 'r')
+# ax2.axvline(lxy[3], ls = 'dashed', color = 'r')
+# ax.legend()
+# ax2.legend()
+# =============================================================================
+# %%
 
-d_pmx_ga = gns_ga['pm_x'] - ga_gns['pm_l']
 
-d_pmy_ga = gns_ga['pm_y'] - ga_gns['pm_b']
-
+d_pmx_ga = gns_ga['pm_x']- ga_gns['pm_x']
+d_pmy_ga = gns_ga['pm_y']- ga_gns['pm_y']
 
 m_pm, lxy = sig_f(d_pmx_ga, d_pmy_ga, 3)
 
@@ -496,7 +564,7 @@ d_pmy_ga_m = d_pmy_ga[m_pm]
 
 
 fig, (ax,ax2) = plt.subplots(1,2)
-ax.set_title(f'Gaia stars = {len(d_pmx_ga_m)}, Degree = {max_deg-1}', fontsize= 15)
+ax.set_title(f'Proyected Gaia pm. Degre {max_deg-1}', fontsize= 15)
 ax2.set_title(f'Ref. epoch GNS{destination}', fontsize = 15)
 ax.hist(d_pmx_ga, bins = bins, color = 'k', alpha = 0.2)
 ax2.hist(d_pmy_ga, bins = bins,color = 'k', alpha = 0.2)
@@ -510,71 +578,138 @@ ax2.axvline(lxy[2], ls = 'dashed', color = 'r')
 ax2.axvline(lxy[3], ls = 'dashed', color = 'r')
 ax.legend()
 ax2.legend()
+sys.exit(581)
+# %%  
+# mu_eq = np.hypot(ga_gns['pm_l'], ga_gns['pm_b'])
+# mu_gal = np.hypot(gns_ga['pm_x'],gns_ga['pm_y'])
+
+# resid_mu = mu_eq - mu_gal
+# print("σ(Δμ):", np.std(resid_mu))
 
 
 # %%
+m_for_g = (gns1_m['H']>gns_mags[0]) & (gns1_m['H']<gns_mags[1])
+gns1_m = gns1_m[m_for_g]
 
-zone =  'F20_f01_f06_H'
 
-scamp_f = '/Users/amartinez/Desktop/Projects/GNS_gd/scamp/GNS0/%s/'%(zone)
+
+radius = abs(np.min(gns1['l'])-np.max(gns1['l']))*0.6*u.degree
+center_g = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
 
 try:
-    cat = Table.read(scamp_f +f'merged_{zone}_1.ocat', format = 'ascii') 
+    
+    # gaia = Table.read(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value))
+    gaia = Table.read(pruebas1  + 'NOgaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value))
+    print('Gaia from table')
 except:
-    cat = Table.read(scamp_f +f'merged_{zone}.ocat', format = 'ascii') 
-vel_max = 50
-pm_mask = (abs(cat['PMALPHA_J2000']) <vel_max) &  (abs(cat['PMDELTA_J2000']) <vel_max) & (abs(cat['PMALPHA_J2000']) >1e-5) &  (abs(cat['PMDELTA_J2000']) >1e-5)
-cat = cat[pm_mask]
+    print('Gaia from web')
+    center = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic').icrs
 
-cat_c = SkyCoord(ra = cat['ALPHA_J2000'], dec = cat['DELTA_J2000'], frame = 'fk5').galactic
-
-if destination == 1:
-    
-    gns_c = SkyCoord(l = gns1_m['l'], b = gns1_m['b'], frame = 'galactic')
-
-    max_sep = 20*u.mas
-    idx, d2d, _ = cat_c.match_to_catalog_sky(gns_c, nthneighbor=1)
-    match_mask = d2d < max_sep
-    cat_m = cat[match_mask]
-    gns_mm = gns1_m[idx[match_mask]]
-
-if destination == 2:
-    
-    gns_c = SkyCoord(l = gns2_m['l'], b = gns2_m['b'], frame = 'galactic')
-
-    max_sep = 50*u.mas
-    idx, d2d, _ = cat_c.match_to_catalog_sky(gns_c, nthneighbor=1)
-    match_mask = d2d < max_sep
-    cat_m = cat[match_mask]
-    gns_mm = gns2_m[idx[match_mask]]
+    Gaia.MAIN_GAIA_TABLE = "gaiadr3.gaia_source" # Select early Data Release 3
+    Gaia.ROW_LIMIT = -1  # it not especifty, Default rows are limited to 50. 
+    j = Gaia.cone_search_async(center, radius = abs(radius))
+    gaia = j.get_results()
+    gaia.write(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value), overwrite = True)
 
 
+gaia = filter_gaia_data(
+    gaia_table=gaia,
+    astrometric_params_solved=31,
+    duplicated_source= False,
+    parallax_over_error_min=-10,
+    astrometric_excess_noise_sig_max=2,
+    phot_g_mean_mag_min= gaia_mags[1],
+    phot_g_mean_mag_max=gaia_mags[0],
+    pm_min=0,
+    pmra_error_max=e_pm,
+    pmdec_error_max=e_pm
+    )
 
 
-# %
-fig, ax = plt.subplots(1,1)
-ax.scatter(cat_c.l,cat_c.b)
-ax.scatter(cat_c.l[match_mask],cat_c.b[match_mask])
+ga_c = SkyCoord(ra = gaia['ra'], dec = gaia['dec'], pm_ra_cosdec = gaia['pmra'],
+                 pm_dec = gaia['pmdec'], obstime = 'J2016', 
+                 equinox = 'J2000', frame = 'icrs').galactic
 
 
-dpmx = (gns_mm['pm_x'] - cat_m['PMALPHA_J2000'])
-dpmy = (gns_mm['pm_y'] - cat_m['PMDELTA_J2000'])
 
-m_pm, lim = sig_f(dpmx, dpmy, 3) 
-
-dpmx_m = dpmx[m_pm]
-dpmy_m = dpmy[m_pm]
+gaia['pm_l'] = ga_c.pm_l_cosb 
+gaia['pm_b'] = ga_c.pm_b
 
 
-fig, ax = plt.subplots(1,1)
 
-ax.scatter(dpmx_m,dpmy_m, color = 'k', alpha = 0.3)
-ax.axvline(lims[0].value, color = 'r', ls = 'dashed', label = f'{3}$\sigma$')
-ax.scatter(dpmx_m,dpmy_m,edgecolor = 'k', label = '$\overline{\Delta \mu_{x}}$ = %.2f, $\sigma$ = %.2f\n''$\overline{\Delta \mu_{y}}$ = %.2f, $\sigma$ = %.2f'%(np.mean(dpmx_m),np.std(dpmx_m),np.mean(dpmy_m),np.std(dpmy_m)))
-ax.axvline(lims[1].value, color = 'r', ls = 'dashed')
-ax.axhline(lims[2].value, color = 'r', ls = 'dashed')
-ax.axhline(lims[3].value, color = 'r', ls = 'dashed')
+# Comaparing Gaia with itself
+
+dga_ra = gaia['pmra'] - gaia['pm_l']
+dga_dec = gaia['pmdec'] - gaia['pm_b']
+print(np.mean(dga_ra),np.std(dga_ra))
+print(np.mean(dga_dec),np.std(dga_dec))
+m_ga, lga = sig_f(dga_ra, dga_dec ,3)
+
+dga_ram = dga_ra[m_ga]
+dga_decm = dga_dec[m_ga]
+
+fig, (ax,ax2) = plt.subplots(1,2)
+
+fig.suptitle(f'Gaia Ecu vs Gaia Gal. Stars =  {len(gaia)} ')
+ax.hist(dga_ra, bins = bins, color = 'k', alpha = 0.2)
+ax2.hist(dga_dec, bins = bins,color = 'k', alpha = 0.2)
+ax.hist(dga_ram, bins = bins, histtype = 'step', label = '$\overline{\mu}_{Ra-l}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(dga_ram.value),np.std(dga_ram.value)))
+ax2.hist(dga_decm, bins = bins, histtype = 'step',label = '$\overline{\mu}_{Dec-b}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(dga_decm.value),np.std(dga_decm.value)))
+ax.set_xlabel('$\Delta \mu_{RA-l}$ [mas/yr]')
+ax2.set_xlabel('$\Delta\mu_{Dec-b}$ [mas/yr]')
+ax.axvline(lga[0], ls = 'dashed', color = 'r')
+ax.axvline(lga[1], ls = 'dashed', color = 'r')
+ax2.axvline(lga[2], ls = 'dashed', color = 'r')
+ax2.axvline(lga[3], ls = 'dashed', color = 'r')
 ax.legend()
+ax2.legend()
+
+# %%
+ga_c = SkyCoord(ra=gaia['ra'], dec=gaia['dec'],
+                pm_ra_cosdec=gaia['pmra'],
+                pm_dec=gaia['pmdec'],
+                frame='icrs', obstime='J2016')
+ga_gal = ga_c.galactic
+
+ga_icrs_back = ga_gal.transform_to('icrs')
+# Residuals
+dga_ra = (ga_icrs_back.pm_ra_cosdec - ga_c.pm_ra_cosdec)
+dga_dec = (ga_icrs_back.pm_dec - ga_c.pm_dec)
+
+m_ga, lga = sig_f(dga_ra, dga_dec ,3)
+
+dga_ram = dga_ra[m_ga]
+dga_decm = dga_dec[m_ga]
+
+fig, (ax,ax2) = plt.subplots(1,2)
+
+fig.suptitle(f'Gaia Ecu vs Gaia Gal to ICRS. Stars =  {len(gaia)} ')
+ax.hist(dga_ra, bins = bins, color = 'k', alpha = 0.2)
+ax2.hist(dga_dec, bins = bins,color = 'k', alpha = 0.2)
+ax.hist(dga_ram, bins = bins, histtype = 'step', label = '$\overline{\mu}_{Ra}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(dga_ram.value),np.std(dga_ram.value)))
+ax2.hist(dga_decm, bins = bins, histtype = 'step',label = '$\overline{\mu}_{Dec}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(dga_decm.value),np.std(dga_decm.value)))
+ax.set_xlabel('$\Delta \mu_{RA}$ [mas/yr]')
+ax2.set_xlabel('$\Delta\mu_{Dec}$ [mas/yr]')
+ax.axvline(lga[0].value, ls = 'dashed', color = 'r')
+ax.axvline(lga[1].value, ls = 'dashed', color = 'r')
+ax2.axvline(lga[2].value, ls = 'dashed', color = 'r')
+ax2.axvline(lga[3].value, ls = 'dashed', color = 'r')
+ax.legend()
+ax2.legend()
+# %%
+mu_eq = np.hypot(gaia['pmra'], gaia['pmdec'])
+mu_gal = np.hypot(gaia['pm_l'], gaia['pm_b'])
+
+resid_mu = mu_eq - mu_gal
+print("σ(Δμ):", np.std(resid_mu))
+
+# %%
+
+
+
+
+
+
 
 
 

@@ -76,6 +76,7 @@ def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,use_grid,gri
         if len(comom_ls) >1:
             # if comom_ls[-1] < comom_ls[-2]:
             if (comom_ls[-1] <= comom_ls[-2]) and loop >= max_loop:
+            # if loop >= max_loop:
                 deg += 1
                 loop = 0
                 comom_ls =[]
@@ -154,7 +155,7 @@ def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,use_grid,gri
                 #==============
                 # Fit weighted
                 #==============
-                fit_xw = fitter(model_x, xy_1c[:,0],xy_1c[:,1], xy_2c[:,0], weights= 1/np.sqrt(l1_clip['sl']**2 + l1_clip['sb']**2))  # Fit x-coordinates
+                fit_xw = fitter(model_x, xy_1c[:,0],xy_1c[:,1],  xy_2c[:,0], weights= 1/np.sqrt(l1_clip['sl']**2 + l1_clip['sb']**2))  # Fit x-coordinates
                 fit_yw = fitter(model_y, xy_1c[:,0],xy_1c[:,1],  xy_2c[:,1],weights= 1/np.sqrt(l1_clip['sl']**2 + l1_clip['sb']**2)) 
             
             elif f_mode == 'NW':

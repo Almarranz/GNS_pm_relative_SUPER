@@ -14,6 +14,8 @@ Returns:
 # gaia_filters.py
 
 import numpy as np
+from astropy.coordinates import SkyCoord
+from astropy import units as u 
 
 def filter_gaia_data(gaia_table, 
                      astrometric_params_solved=None, 
@@ -24,7 +26,8 @@ def filter_gaia_data(gaia_table,
                      phot_g_mean_mag_max=None, 
                      pm_min=None, 
                      pmra_error_max=None, 
-                     pmdec_error_max=None):
+                     pmdec_error_max=None,
+                     min_angular_separation_arcsec = None):
     
     mask = np.ones(len(gaia_table), dtype=bool)
     print('pmra_error_max',pmra_error_max)
@@ -55,7 +58,34 @@ def filter_gaia_data(gaia_table,
     if pmdec_error_max is not None:
         mask &= (gaia_table['pmdec_error'] < pmdec_error_max)
     
-    return gaia_table[mask]
+    filtered_table = gaia_table[mask]
+    
+    if min_angular_separation_arcsec is not None and len(filtered_table) > 1:
+        coords = SkyCoord(ra=filtered_table['ra'],
+                          dec=filtered_table['dec'])
+        
+        # Compute pairwise separations
+        # sep_matrix = coords.separation(coords).to(u.arcsec)
+        sep_matrix = coords[:, None].separation(coords[None, :]).to(u.arcsec)
+        # Create a boolean mask to identify stars to keep
+        # Initially, all are assumed valid
+        # close_pairs = (sep_matrix < min_angular_separation_arcsec) & (sep_matrix > 0*u.arcsec)
+        print(sep_matrix)
+        # close_pairs = (sep_matrix < min_angular_separation_arcsec) & (sep_matrix > 0*u.arcsec)
+        close_pairs = (sep_matrix < min_angular_separation_arcsec) & (sep_matrix > 0*u.arcsec)
+        print(close_pairs)
+
+        # Find indices involved in close pairs
+        to_remove = np.unique(np.where(close_pairs)[0])
+
+        # Remove stars involved in close pairs
+        final_mask = np.ones(len(filtered_table), dtype=bool)
+        final_mask[to_remove] = False
+        filtered_table = filtered_table[final_mask]
+
+    return filtered_table
+
+
 
     
 def filter_hosek_data(hosek_table,
@@ -95,22 +125,21 @@ def filter_gns_data(gns_table,
                       max_e_pm = None,
                       min_mag = None,
                       max_mag = None,
-                      max_Pclust = None,
-                      center = None):
+                      ):
 
     mask = np.ones(len(gns_table), dtype=bool)
     
     if max_e_pos is not None:
-        mask &= (gns_table['dx1'] < max_e_pos) & (gns_table['dy1'] < max_e_pos) 
+        mask &= (gns_table['sl'] < max_e_pos) & (gns_table['sb'] < max_e_pos) 
     
     if min_mag is not None:
-        mask &= (gns_table['H1'] < min_mag) 
+        mask &= (gns_table['H'] < min_mag) 
     
     if max_mag is not None:
-        mask &= (gns_table['H1'] > max_mag) 
+        mask &= (gns_table['H'] > max_mag) 
         
-    if center is not None:
-        mask &= (gns_table['H1'] - gns_table['Ks1'] > 1.3)
+    if max_e_pm is not None:
+        mask &= (gns_table['dpm_x'] < max_e_pm) & (gns_table['dpm_y'] < max_e_pm)
 
     return gns_table[mask]
 

@@ -18,9 +18,10 @@ from astropy.coordinates import SkyCoord
 import Polywarp as pw
 
 from astropy import units as u
-
+from astropy.coordinates import search_around_sky
+from collections import Counter
 import pandas as pd
-
+from matplotlib.colors import LogNorm
 import os
 import glob
 from astropy.modeling.models import Polynomial2D
@@ -34,8 +35,9 @@ from astropy.time import Time
 from astroquery.gaia import Gaia
 import astroalign as aa
 from filters import filter_gaia_data
+from filters import filter_gns_data
 from alignator_looping import alg_loop
-
+from scipy import stats
 # %% 
 # %%plotting parametres
 from matplotlib import rc
@@ -111,35 +113,36 @@ indices = np.arange(0,len(strin),1)
 # =============================================================================
 # center_only = 'yes'#TODO yes, eliminates foregroud, no, keep them
 center_only = 'no'
-pix_scale = 0.1064*0.5
+# pix_scale = 0.1064*0.5
 # pix_scale = 0.1064
 # max_sig = 0.3#TODO
-e_pm = 0.1#!!! Maximun error in pm for Gaia stars
-gaia_mags = [0, 17]#!!! Gaia mag limtis for comparison with GNS
-max_sep_ga = 50*u.mas# separation for comparison with gaia
+
 
 max_loop = 0
-gns_mags = [0,20]#!!! GNS mag limtis for comparison with Gaia
-max_sig = 0.005
-# max_sig = 2
+gns_mags = [12,18]#!!! GNS mag limtis for comparison with Gaia
+max_sig = 1
+e_pm_gns = None#!!!error cut in proper motions
+# max_sig = 0.05
 # use_grid = 'yes'
 use_grid = 'no'
 grid_s = 700
-bad_lim = -0.7#!!! weird offset in Delat H between GNS 1 and 2
 # use_grid = 'no'
-max_sep = 30* u.mas# firts match gns1 to gns2 for astroaling
-sig_cl = 3#!!!
-max_deg =2
-d_m = 20*u.mas#!!!in arcse, max distance for the fine alignment betwenn GNS1 and 2
-d_m_pm = 0.300#!!! in arcs, max distance for the proper motions
-destination = 1 #!!! GNS1 is reference
+max_sep = 50* u.mas# firts match gns1 to gns2 for astroaling
+sig_cl = 4#!!!
+max_deg =4
+
+d_m = 50*u.mas#!!!in arcse, max distance  for the fine alignment betwenn GNS1 and 2
+d_m_pm = 50#!!! in arcs, max distance for the proper motions
+destination = 2 #!!! GNS1 is reference
 # destination = 2 #!!! GNS2 is reference
-# align_by = 'Polywarp'#!!!
-align_by = '2DPoly'#!!!
+align_by = 'Polywarp'#!!!
+# align_by = '2DPoly'#!!!
 # f_mode = 'W' # f_mode only useful for 2Dpoly
 # f_mode = 'WnC'
 f_mode = 'NW'
 # f_mode = 'NWnC'
+
+
 
 def sig_f(x, y,s):
     mx, lx, hx = sigma_clip(x , sigma = s, masked = True, return_bounds= True)
@@ -154,29 +157,115 @@ GNS_2='/Users/amartinez/Desktop/PhD/HAWK/GNS_2/lists/%s/chip%s/'%(field_two, chi
 pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1absolute_SUPER/pruebas/'
 pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2absolute_SUPER/pruebas/'
 
+# gns1 = Table.read(GNS_1 + 'stars_calibrated_H_chip%s.ecsv'%(chip_one),  format = 'ascii.ecsv')
+# gns2 = Table.read(GNS_2 + 'stars_calibrated_H_chip%s.ecsv'%(chip_two), format = 'ascii.ecsv')
+# gns1 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS1/H/F06/B6_lxp_cal.ecsv',  format = 'ascii.ecsv')
+# gns2 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS2/H/F20/20_lxp_cal.ecsv', format = 'ascii.ecsv')
+# gns1 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS1/H/F06/B6_H_opti.ecsv',  format = 'ascii.ecsv')
+# gns2 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS2/H/F20/20_H_opti_fcalib.ecsv', format = 'ascii.ecsv')
+gns1 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS1/H/F06/B6_H_chips_opti.ecsv',  format = 'ascii.ecsv')
+fig, (ax, ax2) = plt.subplots(1,2)
+ax.hist2d(gns1['H'],gns1['sl'], bins = 100,norm = LogNorm())
+his = ax2.hist2d(gns1['H'],gns1['sb'], bins = 100,norm = LogNorm())
+fig.colorbar(his[3], ax =ax2)
+ax.set_title('GNS1')
+ax.set_ylabel('$\delta l$ [arcsec]')
+ax2.set_ylabel('$\delta b$ [arcsec]')
+ax.set_xlabel('[H]')
+ax2.set_xlabel('[H]')
+fig.tight_layout()
+ax.axhline(max_sig,ls = 'dashed', color = 'r')
+if gns_mags[1] is not None:
+    ax.axvline(gns_mags[1],ls = 'dashed', color = 'r')
 
-gns1 = Table.read(GNS_1 + 'stars_calibrated_H_chip%s.ecsv'%(chip_one),  format = 'ascii.ecsv')
-gns2 = Table.read(GNS_2 + 'stars_calibrated_H_chip%s.ecsv'%(chip_two), format = 'ascii.ecsv')
+# %%
+# fig, (axa, axb)= plt.subplots(1,2, figsize =(21,7))
+# # fig, (axa, axb)= plt.subplots(2,1, figsize =(7,10))
+# hisa = axa.hist2d(gns1['H'],np.sqrt(gns1['sl']**2 + gns1['sb']**2) , bins = 100,norm = LogNorm())
+# axa.set_ylabel('Position uncertainty (ℓ, b) [arcsec]')
+# axa.set_xlabel('GNS I [H]')
+# axa.set_ylim(0.001,0.4)
+# fig.colorbar(hisa[3], ax =axa, fraction = 0.05, aspect = 30, label = '# stars')
 
-# m_mask = (gns1['H']>14) & (gns1['H']<17)
-# gns1 = gns1[m_mask]
+# num_bins = 100
+# statistic, x_edges, y_edges, binnumber = stats.binned_statistic_2d(gns1['l'], gns1['b'], np.sqrt(gns1['sl']**2 + gns1['sb']**2), statistic='median', bins=(num_bins,int(num_bins/2)))
+# # Create a meshgrid for plotting
+# X, Y = np.meshgrid(x_edges, y_edges)
+# # Plot the result
+# # c = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r', norm = LogNorm() ) 
+# c = axb.pcolormesh(X, Y, statistic.T, cmap='Spectral_r') 
+# # fig.colorbar(c, ax=ax, label='$\sqrt {\delta l^{2} + \delta b^{2}}$ [arcsec]', shrink = 1)
+# cb = fig.colorbar(c, ax=axb,  fraction = 0.05, aspect = 30)
+# cb.set_label('Position uncertainty (ℓ, b) [arcsec]', fontsize=20, labelpad = 20) 
+# # ax.set_title(f'GNS1 Max $\delta$ posit = {max_sig}. Max mag = {gns_mags[1]}')
+# axb.set_xlabel('l')
+# axb.set_ylabel('b')
+# # ax.axis('scaled')
+# axb.axis('equal')
+# fig.tight_layout()
+# axb.scatter(ga_gns['l'], ga_gns['b'], marker = '*', edgecolor = 'k', label = 'Gaia Stars',s = 200)
+# axb.legend()
+# meta = {'Script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/SUPER_alignment.py'}
+# # plt.savefig('/Users/amartinez/Desktop/PhD/My_papers/SgrB1_cluster/images/dpos_lb_H.png', bbox_inches='tight', pad_inches=0, dpi = 300, edgecolor = 'white', transparent = True, metadata = meta)
 
-unc_cut1 = (gns1['sl']<max_sig) & (gns1['sb']<max_sig)
-gns1 = gns1[unc_cut1]
 
-unc_cut2 = (gns2['sl']<max_sig) & (gns2['sb']<max_sig)
-gns2 = gns2[unc_cut2]
+# meta = {'Script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/SUPER_alignment.py'}
+# plt.savefig('/Users/amartinez/Desktop/PhD/My_papers/SgrB1_cluster/images/dpos_H_gns1.png', bbox_inches='tight', pad_inches=0, dpi = 300, edgecolor = 'white', transparent = True, metadata = meta)
+
+
+# %%
+
+
+
+gns2 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS2/H/F20/20_H_chips_opti.ecsv', format = 'ascii.ecsv')
+
+fig2, (ax_2, ax2_2) = plt.subplots(1,2)
+ax_2.set_title('GNS2')
+ax_2.hist2d(gns2['H'],gns2['sl'],cmap = 'inferno', bins = 100,norm = LogNorm())
+his = ax2_2.hist2d(gns2['H'],gns2['sb'],cmap = 'inferno', bins = 100,norm = LogNorm())
+fig2.colorbar(his[3], ax =ax2_2)
+ax_2.set_ylabel('$\delta l$ [arcsec]')
+ax2_2.set_ylabel('$\delta b$ [arcsec]')
+ax2_2.set_xlabel('[H]')
+ax_2.set_xlabel('[H]')
+fig2.tight_layout()
+ax_2.axhline(max_sig,ls = 'dashed', color = 'r')
+if gns_mags[1] is not None:
+    ax_2.axvline(gns_mags[1],ls = 'dashed', color = 'r')
+
+
 
 
 buenos1 = (gns1['l']>min(gns2['l'])) & (gns1['l']<max(gns2['l'])) & (gns1['b']>min(gns2['b'])) & (gns1['b']<max(gns2['b']))
 
 gns1 = gns1[buenos1]
 gns1['ID'] = np.arange(len(gns1))
+all_1 = len(gns1)
 
 buenos2 = (gns2['l']>min(gns1['l'])) & (gns2['l']<max(gns1['l'])) & (gns2['b']>min(gns1['b'])) & (gns2['b']<max(gns1['b']))
 
 gns2 = gns2[buenos2]
 gns2['ID'] = np.arange(len(gns2))
+all_2 = len(gns2)
+
+# m1_mask = (gns1['H']>gns_mags[0]) & (gns1['H']<gns_mags[1])
+# gns1 = gns1[m1_mask]
+
+# unc_cut1 = (gns1['sl']<max_sig) & (gns1['sb']<max_sig)
+# gns1 = gns1[unc_cut1]
+
+gns1 = filter_gns_data(gns1, max_e_pos = max_sig, max_mag = gns_mags[0], min_mag = gns_mags[1] )
+
+# unc_cut2 = (gns2['sl']<max_sig) & (gns2['sb']<max_sig)
+# gns2 = gns2[unc_cut2]
+# m2_mask = (gns2['H']>gns_mags[0]) & (gns2['H']<gns_mags[1])
+# gns2 = gns2[m2_mask]
+
+gns2 = filter_gns_data(gns2, max_e_pos = max_sig, max_mag = gns_mags[0], min_mag = gns_mags[1] )
+
+
+ax2.set_title(f'Clipped {100 - 100*len(gns1)/all_1:.1f}%')
+ax2_2.set_title(f'Clipped {100 - 100*len(gns2)/all_2:.1f}%')
 
 center = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
 # center_1 = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
@@ -199,21 +288,73 @@ gns1['yp'] = gns1_t.lat.to(u.arcsec)
 gns2['xp'] = gns2_t.lon.to(u.arcsec)
 gns2['yp'] = gns2_t.lat.to(u.arcsec)
 
-# gns1['xp'] = xg_1.to(u.arcsec)
-# gns1['yp'] = yg_1.to(u.arcsec)
-# gns2['xp'] = xg_2.to(u.arcsec)
-# gns2['yp'] = yg_2.to(u.arcsec)
-
-
 
 # %%
+
+
+num_bins = 100
+statistic, x_edges, y_edges, binnumber = stats.binned_statistic_2d(gns1['l'], gns1['b'], np.sqrt(gns1['sl']**2 + gns1['sb']**2), statistic='median', bins=(num_bins,int(num_bins/2)))
+# Create a meshgrid for plotting
+X, Y = np.meshgrid(x_edges, y_edges)
+# Plot the result
+fig, ax = plt.subplots(figsize = (12,6))
+# c = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r', norm = LogNorm() ) 
+c = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r') 
+# fig.colorbar(c, ax=ax, label='$\sqrt {\delta l^{2} + \delta b^{2}}$ [arcsec]', shrink = 1)
+cb = fig.colorbar(c, ax=ax,  fraction = 0.05, aspect = 30)
+cb.set_label('Position uncertainty (ℓ, b) [arcsec]', fontsize=20, labelpad = 20) 
+# ax.set_title(f'GNS1 Max $\delta$ posit = {max_sig}. Max mag = {gns_mags[1]}')
+ax.set_xlabel('l')
+ax.set_ylabel('b')
+# ax.axis('scaled')
+ax.axis('equal')
+meta = {'Script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/SUPER_alignment.py'}
+plt.savefig('/Users/amartinez/Desktop/PhD/My_papers/SgrB1_cluster/images/dpos_lb.png', bbox_inches='tight', pad_inches=0, dpi = 300, edgecolor = 'white', transparent = True, metadata = meta)
+
+
+# sys.exit(275)
+# %%
+
+
+statistic, x_edges, y_edges, binnumber = stats.binned_statistic_2d(gns2['l'], gns2['b'], np.sqrt(gns2['sl']**2 + gns2['sb']**2), statistic='median', bins=(num_bins,int(num_bins/2)))
+# Create a meshgrid for plotting
+X, Y = np.meshgrid(x_edges, y_edges)
+# Plot the result
+fig, ax = plt.subplots()
+# c = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r', norm = LogNorm(vmax = max_sig*2) ) 
+c = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',vmin = 0, vmax = max_sig*1.5) 
+fig.colorbar(c, ax=ax, label='$\sqrt {\delta l^{2} + \delta b^{2}}$ [arcsec]', shrink = 1)
+ax.set_title(f'GNS2 Max $\delta$ posit = {max_sig}. Max mag = {gns_mags[1]}')
+ax.set_xlabel('l')
+ax.set_ylabel('b')
+ax.axis('equal')# %%
 #I cosider a math if the stars are less than 'max_sep' arcsec away 
 # This is for cutting the the overlapping areas of both lists. (Makes astroaling work faster)
+# sys.exit(237)
 
-idx,d2d,d3d = gns1_lb.match_to_catalog_sky(gns2_lb)# ,nthneighbor=1 is for 1-to-1 match
-sep_constraint = d2d < max_sep
-gns1_match = gns1[sep_constraint]
-gns2_match = gns2[idx[sep_constraint]]
+# idx,d2d,d3d = gns1_lb.match_to_catalog_sky(gns2_lb)# ,nthneighbor=1 is for 1-to-1 match
+# sep_constraint = d2d < max_sep
+# gns1_match = gns1[sep_constraint]
+# gns2_match = gns2[idx[sep_constraint]]
+
+
+idx1, idx2, sep2d, _ = search_around_sky(gns1_lb, gns2_lb, 50*u.mas)
+
+count1 = Counter(idx1)
+count2 = Counter(idx2)
+
+# Step 3: Create mask for one-to-one matches only
+mask_unique = np.array([
+    count1[i1] == 1 and count2[i2] == 1
+    for i1, i2 in zip(idx1, idx2)
+])
+
+# Step 4: Apply the mask
+idx1_clean = idx1[mask_unique]
+idx2_clean = idx2[mask_unique]
+
+gns1_match= gns1[idx1_clean]
+gns2_match = gns2[idx2_clean]
 
 diff_H = gns2_match['H']-gns1_match['H']
 # off_s = np.mean(diff_H)
@@ -223,14 +364,14 @@ diff_H = gns2_match['H']-gns1_match['H']
 sig_cl = 3
 mask_H, l_lim,h_lim = sigma_clip(diff_H, sigma=sig_cl, masked = True, return_bounds= True, maxiters= 50)
 
-# gns2_match = gns2_match[mask_H.mask]
-# gns1_match = gns1_match[mask_H.mask]
+gns2_match = gns2_match[np.logical_not(mask_H.mask)]
+gns1_match = gns1_match[np.logical_not(mask_H.mask)]
 
 
-bad_H = diff_H <bad_lim
+
 fig,ax = plt.subplots(1,1)
+ax.set_title(f'Matching starts {len(gns2_match)}')
 ax.hist(diff_H, bins = 'auto',histtype = 'step')
-ax.axvline(bad_lim, ls = 'dashed', color = 'k', label = 'Malas?')
 ax.axvline(np.mean(diff_H), color = 'k', ls = 'dashed', label = '$\overline{\Delta H}$= %.2f$\pm$%.2f'%(np.mean(diff_H),np.std(diff_H)))
 ax.axvline(l_lim, ls = 'dashed', color ='r', label ='%s$\sigma$'%(sig_cl))
 
@@ -239,13 +380,7 @@ ax.set_xlabel('$\Delta H$')
 ax.legend() 
 
 
-
-fig,ax = plt.subplots()
-ax.set_title(f'Common GNS2 F{field_two} GNS1 {field_one}. Max sep = {max_sep}')
-ax.scatter(gns1_match['l'],gns1_match['b'])
-ax.scatter(gns1_match['l'][bad_H],gns1_match['b'][bad_H], label = 'Malas')
-ax.legend()
-# sys.exit(212)
+# sys.exit(288)
 # %%
 g1_m = np.array([gns1_match['xp'],gns1_match['yp']]).T
 g2_m = np.array([gns2_match['xp'],gns2_match['yp']]).T
@@ -326,52 +461,133 @@ l_12 = compare_lists(l1_xy,l2_xy,d_m_pm)
 
 
 print(30*'*'+'\nComon stars to be use for pm calculation :%s\n'%(len(l_12))+30*'*')
-gns1_m = gns1[l_12['ind_1']]
-gns2_m = gns2[l_12['ind_2']]
+gns1_mi = gns1[l_12['ind_1']]
+gns2_mi = gns2[l_12['ind_2']]
 
 
 
-dx = (gns2_m['xp'].value- gns1_m['xp'].value)*1000
-dy = (gns2_m['yp'].value- gns1_m['yp'].value)*1000
+dx = (gns2_mi['xp'].value- gns1_mi['xp'].value)*1000
+dy = (gns2_mi['yp'].value- gns1_mi['yp'].value)*1000
 
 pm_x = (dx*u.mas)/dt.to(u.year)
 pm_y = (dy*u.mas)/dt.to(u.year)
+
+dpm_x = (1/dt.to(u.year))*np.sqrt((gns2_mi['sl']*1000)**2 + (gns1_mi['sl']*1000)**2)
+dpm_y = (1/dt.to(u.year))*np.sqrt((gns2_mi['sb']*1000)**2 + (gns1_mi['sb']*1000)**2)
+
+       
+
 # pm_l = (dl*mean_b)/dt.to(u.year)
 # pm_b = (db)/dt.to(u.year)
 
-sig_dis = 3
+sig_dis = 10
 
 m_pm, lims = sig_f(pm_x, pm_x, sig_dis)
 
 
 pm_xm = pm_x[m_pm]
 pm_ym = pm_y[m_pm]
+dpm_xm = dpm_x[m_pm]
+dpm_ym = dpm_y[m_pm]
 
-gns1_m = gns1_m[m_pm]
-gns2_m = gns2_m[m_pm]
+gns1_mi = gns1_mi[m_pm]
+gns2_mi = gns2_mi[m_pm]
 
-gns1_m['pm_x']  = pm_xm
-gns1_m['pm_y']  = pm_ym
+gns1_mi['pm_x']  = pm_xm
+gns1_mi['pm_y']  = pm_ym
 
-gns2_m['pm_x']  = pm_xm
-gns2_m['pm_y']  = pm_ym
+gns2_mi['pm_x']  = pm_xm
+gns2_mi['pm_y']  = pm_ym
+
+gns1_mi['dpm_x']  = dpm_xm
+gns1_mi['dpm_y']  = dpm_ym
+
+gns2_mi['dpm_x']  = dpm_xm
+gns2_mi['dpm_y']  = dpm_ym
+
+# %%
+e_pm_gns = 2##
+gns1_m = filter_gns_data(gns1_mi, max_e_pm = e_pm_gns)
+gns2_m = filter_gns_data(gns2_mi, max_e_pm = e_pm_gns)
+
+
+gns1 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS1/H/F06/B6_H_chips_opti.ecsv',  format = 'ascii.ecsv')
+fig, (ax, ax2) = plt.subplots(1,2)
+ax.hist2d(gns1_mi['H'],gns1_mi['dpm_x'], bins = 100,norm = LogNorm())
+his = ax2.hist2d(gns1_mi['H'],gns1_mi['dpm_y'], bins = 100,norm = LogNorm())
+fig.colorbar(his[3], ax =ax2)
+ax.set_title('GNS1')
+ax.set_ylabel('$\sigma \mu_{lp}$ [mas/yr]')
+ax2.set_ylabel('$\sigma \mu_{bp}$ [mas/yr]')
+ax.set_xlabel('[H]')
+ax2.set_xlabel('[H]')
+fig.tight_layout()
+ax.axhline(np.median(gns1_m['dpm_x']),ls = 'dashed', color = 'r', label = 'Median %.2f' %(np.median(gns1_m['dpm_x'])))
+ax.axhline(e_pm_gns, color = 'k', label = 'Max Epm' )
+ax2.axhline(np.median(gns1_m['dpm_y']),ls = 'dashed', color = 'r')
+ax2.axhline(e_pm_gns, color = 'k', label = 'Max Epm' )
+# ax2.axhline(2,ls = 'dashed', color = 'r')
+ax.legend()
+
+
+statistic, x_edges, y_edges, binnumber = stats.binned_statistic_2d(gns2_m['l'], gns2_m['b'], np.sqrt(gns2_m['dpm_x']**2 + gns2_m['dpm_y']**2), statistic='median', bins=(num_bins,int(num_bins/2)))
+# Create a meshgrid for plotting
+X, Y = np.meshgrid(x_edges, y_edges)
+# Plot the result
+fig, ax = plt.subplots()
+# c = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r', norm = LogNorm() ) 
+c = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r') 
+fig.colorbar(c, ax=ax, label='$\sqrt {\sigma \mu_{x}^{2} + \delta \mu_{y}^{2}}$ [mas/yr]', shrink = 1)
+ax.set_title('GNS pms undertainties')
+ax.set_xlabel('l')
+ax.set_ylabel('b')
+ax.axis('equal')# %%
+
+
+# sys.exit(534)
+# %%
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+dh = gns2_m['H'] - gns1_m['H']
+fig, (ax,ax2,ax3) = plt.subplots(1,3, figsize = (21,7))
+ax.hist(dh, bins = 'auto', label = '$\overline{\Delta H}$ =%.2f\n$\sigma$ = %.2f'%(np.mean(dh) ,np.std(dh) ))
+ax2.axhline(l_lim, color = 'red', ls = 'dashed')
+ax2.axhline(h_lim, color = 'red', ls = 'dashed')
+ax.legend()
+ax.set_title(f'gns1 -> f{field_one}c{chip_one}. GNS2 -> F{field_two}C{chip_two}')
+ax.set_xlabel('$\Delta$[H]')
+# ax2.scatter(gns1['H1'][l_12['ind_1']], dh)
+his = ax2.hist2d(gns1_m['H'], dh, bins = 100, norm = LogNorm())
+ax2.set_ylabel('$\Delta$[H]')
+ax2.set_xlabel('GNS1[H]')
+ax2.grid()
+his3 = ax3.hist2d(gns2_m['H'], dh, bins = 100, norm = LogNorm())
+ax3.set_xlabel('GNS2[H]')
+ax3.grid()
+
+ax2.set_xlim(11,22)
+ax3.set_xlim(11,22)
+divider = make_axes_locatable(ax3)
+cax = divider.append_axes("right", size="5%", pad=0.1)
+fig.colorbar(his3[3], cax=cax)
+
+fig.tight_layout()
+
 
 
 # %%
 bins = 'auto'
 fig, (ax,ax2) = plt.subplots(1,2)
 ax.set_title(f'Ref. = GNS{destination}. Degree = {max_deg-1}', fontsize= 15)
+ax2.set_title(f'E_pm < {e_pm_gns}mas/yr. H = [{gns_mags[0], gns_mags[1]}]', fontsize= 15)
 
-ax.hist(pm_x, bins = bins, color = 'k', alpha = 0.2)
-ax2.hist(pm_y, bins = bins,color = 'k', alpha = 0.2)
-ax.hist(pm_xm, bins = bins, histtype = 'step', label = '$\overline{\mu}_{x}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_xm.value),np.std(pm_xm.value)),)
-ax2.hist(pm_ym, bins = bins, histtype = 'step',label = '$\overline{\mu}_{y}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(pm_ym.value),np.std(pm_ym.value)))
+ax.hist(gns1_m['pm_x'], bins = bins, histtype = 'step', label = '$\overline{\mu}_{x}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(gns1_m['pm_x'].value),np.std(gns1_m['pm_x'].value)),)
+ax2.hist(gns1_m['pm_y'], bins = bins, histtype = 'step',label = '$\overline{\mu}_{y}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(gns1_m['pm_y'].value),np.std(gns1_m['pm_y'].value)))
 ax.set_xlabel('$\Delta \mu_{x}$ [mas/yr]')
 ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
-ax.axvline(lims[0].value , ls = 'dashed', color = 'r', label = f'{sig_dis}$\sigma$')
-ax.axvline(lims[1].value , ls = 'dashed', color = 'r')
-ax2.axvline(lims[2].value , ls = 'dashed', color = 'r')
-ax2.axvline(lims[3].value , ls = 'dashed', color = 'r')
+# ax.axvline(lims[0].value , ls = 'dashed', color = 'r', label = f'{sig_dis}$\sigma$')
+# ax.axvline(lims[1].value , ls = 'dashed', color = 'r')
+# ax2.axvline(lims[2].value , ls = 'dashed', color = 'r')
+# ax2.axvline(lims[3].value , ls = 'dashed', color = 'r')
 ax.set_xlim(-20,20)
 ax2.set_xlim(-20,20)
 
@@ -379,15 +595,17 @@ ax2.set_xlim(-20,20)
 ax.legend( fontsize = 15)
 ax2.legend(fontsize = 15)
 
-# %% Gaia Comparation
-
-
-
+# %% Gaia Comparation#!!!
+max_sep_ga = 45*u.mas# separation for comparison with gaia
+e_pm = 0.5#!!! Maximun error in pm for Gaia stars
+gaia_mags = [1,19]#!!! Gaia mag limtis for comparison with GNS
 # %
 # Before comparing witg Gaia we mask the best pms
 
-m_for_g = (gns1_m['H']>gns_mags[0]) & (gns1_m['H']<gns_mags[1])
-gns1_m = gns1_m[m_for_g]
+
+extra_mag_cut = [0,120]
+gns1_mpm = filter_gns_data(gns1_m, max_e_pm = e_pm_gns, min_mag = extra_mag_cut[1], max_mag = extra_mag_cut[0])
+gns2_mpm = filter_gns_data(gns2_m, max_e_pm = e_pm_gns,  min_mag = extra_mag_cut[1], max_mag = extra_mag_cut[0])
 
 
 
@@ -415,6 +633,11 @@ c_gaia = SkyCoord(ra=gaia['ra'], dec=gaia['dec'],
                   pm_dec=gaia['pmdec'],
                   obstime="J2016")
 
+# cE_gaia = SkyCoord(ra=gaia['ra'], dec=gaia['dec'],
+#                   pm_ra_cosdec=gaia['pmra_error'],
+#                   pm_dec=gaia['pmdec_error'],
+#                   obstime="J2016")
+
 # Step 2: Convert to Cartesian offset using the tangent-plane projection
 # Use a fixed reference point (e.g., center of your field)
 # ref = SkyCoord(ra0*u.deg, dec0*u.deg)
@@ -430,6 +653,20 @@ pm_y_gaia = c_proj.pm_lat.value         # mas/yr
 gaia['pm_x'] = pm_x_gaia
 gaia['pm_y'] = pm_y_gaia
 
+# gaia['pm_x'] = gaia['pmra']
+# gaia['pm_y'] = gaia['pmdec']
+
+mu_eq = np.hypot(gaia['pmra'], gaia['pmdec'])
+mu_pr = np.hypot(gaia['pm_x'], gaia['pm_y'])
+
+resid_mu = mu_eq - mu_pr
+print('Differnces between Gaia pm and Gaia pm proyected')
+print('Comoponete are differente, but modules of the vetors invariant under transformations')
+print("σ(Δμ):", np.std(resid_mu))
+print("mean(Δμ):", np.mean(resid_mu))
+print("σ(μra - μra_p):", np.std(gaia['pmra'] - gaia['pm_x']))
+print("σ(μdec - μdec_p):",np.std(gaia['pmdec'] - gaia['pm_y']))
+
 
 gaia = filter_gaia_data(
     gaia_table=gaia,
@@ -441,7 +678,8 @@ gaia = filter_gaia_data(
     phot_g_mean_mag_max=gaia_mags[0],
     pm_min=0,
     pmra_error_max=e_pm,
-    pmdec_error_max=e_pm
+    pmdec_error_max=e_pm,
+    min_angular_separation_arcsec = 20*u.arcsec
     )
 
 
@@ -479,9 +717,9 @@ gaia['pm_b'] = ga_c.pm_b
 ga_l = ga_c.l.wrap_at('360.02d')
 ga_b = ga_c.b.wrap_at('180d')
 
-gns2_gal = SkyCoord(l = gns2_m['l'], b = gns2_m['b'], 
+gns2_gal = SkyCoord(l = gns2_mpm['l'], b = gns2_mpm['b'], 
                     unit = 'degree', frame = 'galactic')
-gns1_gal = SkyCoord(l = gns1_m['l'], b = gns1_m['b'], 
+gns1_gal = SkyCoord(l = gns1_mpm['l'], b = gns1_mpm['b'], 
                     unit = 'degree', frame = 'galactic')
 
 gaia_c = SkyCoord(l = gaia['l'], b = gaia['b'], frame = 'galactic')
@@ -489,12 +727,12 @@ gaia_c = SkyCoord(l = gaia['l'], b = gaia['b'], frame = 'galactic')
 if destination == 1:
     idx,d2d,d3d = gns1_gal.match_to_catalog_sky(gaia_c)
     sep_constraint = d2d < max_sep_ga
-    gns_ga = gns1_m[sep_constraint]
+    gns_ga = gns1_mpm[sep_constraint]
     ga_gns = gaia[idx[sep_constraint]]# ,nthneighbor=1 is for 1-to-1 match
 elif destination ==2:
     idx,d2d,d3d = gns2_gal.match_to_catalog_sky(gaia_c)
     sep_constraint = d2d < max_sep_ga
-    gns_ga = gns2_m[sep_constraint]
+    gns_ga = gns2_mpm[sep_constraint]
     ga_gns = gaia[idx[sep_constraint]]# ,nthneighbor=1 is for 1-to-1 match
 
 
@@ -503,90 +741,191 @@ l2 = gns2_gal.l.wrap_at('360d')
 l1 = gns1_gal.l.wrap_at('360d')
 
 
-fig, ax = plt.subplots(1,1,figsize =(10,10))
-ax.scatter(l1[::1], gns1_m['b'][::1],label = 'GNS_1 Fied %s, chip %s'%(field_one,chip_one))
+fig, ax_g = plt.subplots(1,1,figsize =(10,10))
+ax_g.set_title(f'Macthing distance = {max_sep_ga}')
+ax_g.scatter(l1[::1], gns1_mpm['b'][::1],label = 'GNS_1 Fied %s, chip %s'%(field_one,chip_one))
 # ax.scatter(l2[::10],  gns2_m['b'][::10], label = 'GNS_2 Fied %s, chip %s'%(field_two,chip_two))
-ax.scatter(ga_l,gaia['b'], color = 'k',label = f'Gaia stars = {len(gaia)}')
-ax.scatter(ga_gns['l'],ga_gns['b'], color = 'r',s =100,label = f'Gaia comp pm = {len(ga_gns)}')
-ax.invert_xaxis()
-ax.legend()
-ax.set_xlabel('l[ deg]', fontsize = 10)
-ax.set_ylabel('b [deg]', fontsize = 10)
+ax_g.scatter(ga_gns['l'],ga_gns['b'], color = 'r',s =100,label = f'Gaia comp pm = {len(ga_gns)}')
+ax_g.invert_xaxis()
+ax_g.legend()
+ax_g.set_xlabel('l[ deg]', fontsize = 10)
+ax_g.set_ylabel('b [deg]', fontsize = 10)
 # ax.axis('scaled')
-ax.set_ylim(min(gaia['b']),max(gaia['b']))
+ax_g.set_ylim(min(gaia['b']),max(gaia['b']))
 
 
-# =============================================================================
-# 
-# d_pmx_ga = gns_ga['pm_x'] - ga_gns['pm_l']
-# d_pmy_ga = gns_ga['pm_y'] - ga_gns['pm_b']
-# # d_pmx_ga = gns_ga['pm_x'] - ga_gns['pmra']
-# # d_pmy_ga = gns_ga['pm_y'] - ga_gns['pmdec']
-# 
-# 
-# 
-# m_pm, lxy = sig_f(d_pmx_ga, d_pmy_ga, 3)
-# 
-# 
-# d_pmx_ga_m = d_pmx_ga[m_pm]
-# d_pmy_ga_m = d_pmy_ga[m_pm]
-# 
-# 
-# 
-# fig, (ax,ax2) = plt.subplots(1,2)
-# ax.set_title(f'Gaia stars = {len(d_pmx_ga_m)}, Degree = {max_deg-1}', fontsize= 15)
-# ax2.set_title(f'Ref. epoch GNS{destination}', fontsize = 15)
-# ax.hist(d_pmx_ga, bins = bins, color = 'k', alpha = 0.2)
-# ax2.hist(d_pmy_ga, bins = bins,color = 'k', alpha = 0.2)
-# ax.hist(d_pmx_ga_m, bins = bins, histtype = 'step', label = '$\overline{\mu}_{x}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmx_ga_m.value),np.std(d_pmx_ga_m.value)))
-# ax2.hist(d_pmy_ga_m, bins = bins, histtype = 'step',label = '$\overline{\mu}_{y}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmy_ga_m.value),np.std(d_pmy_ga_m.value)))
-# ax.set_xlabel('$\Delta \mu_{x}$ [mas/yr]')
-# ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
-# ax.axvline(lxy[0], ls = 'dashed', color = 'r')
-# ax.axvline(lxy[1], ls = 'dashed', color = 'r')
-# ax2.axvline(lxy[2], ls = 'dashed', color = 'r')
-# ax2.axvline(lxy[3], ls = 'dashed', color = 'r')
-# ax.legend()
-# ax2.legend()
-# =============================================================================
-# %%
 
 
 d_pmx_ga = gns_ga['pm_x']- ga_gns['pm_x']
 d_pmy_ga = gns_ga['pm_y']- ga_gns['pm_y']
+# d_pmx_ga = gns_ga['pm_x']- ga_gns['pm_l']
+# d_pmy_ga = gns_ga['pm_y']- ga_gns['pm_b']
 
-m_pm, lxy = sig_f(d_pmx_ga, d_pmy_ga, 3)
 
+e_dpmx = np.sqrt(gns_ga['dpm_x']**2  + ga_gns['pmra_error']**2)
+e_dpmy = np.sqrt(gns_ga['dpm_y']**2  + ga_gns['pmdec_error']**2)
+
+sig_ga = 3
+m_pm, lxy = sig_f(d_pmx_ga, d_pmy_ga, sig_ga)
+
+gns_ga_m = gns_ga[m_pm]
+ga_gns_m = ga_gns[m_pm]
 
 d_pmx_ga_m = d_pmx_ga[m_pm]
 d_pmy_ga_m = d_pmy_ga[m_pm]
 
+e_dpmx_m = e_dpmx[m_pm]
+e_dpmy_m = e_dpmy[m_pm]
+
+# =============================================================================
+# ⚠️⚠️⚠️⚠️WARNING!!!⚠️⚠️⚠️
+# The pm errors, in both Gaia and GNS have to been proyected to the tangetial plane as well!!!
+# =============================================================================
+
+# %
 
 
+
+
+ax_g.scatter(ga_gns[np.logical_not(m_pm)]['l'], ga_gns[np.logical_not(m_pm)]['b'], marker = 'x', color = 'orange', s = 200, lw =5, label = f'{sig_ga}$\sigma$ Clipped Gaia')
+ax_g.legend()
 fig, (ax,ax2) = plt.subplots(1,2)
 ax.set_title(f'Proyected Gaia pm. Degre {max_deg-1}', fontsize= 15)
-ax2.set_title(f'Ref. epoch GNS{destination}', fontsize = 15)
+ax2.set_title(f'Ref. epoch GNS{destination}. Matches {len(d_pmx_ga_m)}', fontsize = 15)
 ax.hist(d_pmx_ga, bins = bins, color = 'k', alpha = 0.2)
 ax2.hist(d_pmy_ga, bins = bins,color = 'k', alpha = 0.2)
 ax.hist(d_pmx_ga_m, bins = bins, histtype = 'step', label = '$\overline{\mu}_{x}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmx_ga_m.value),np.std(d_pmx_ga_m.value)))
 ax2.hist(d_pmy_ga_m, bins = bins, histtype = 'step',label = '$\overline{\mu}_{y}$ = %.2f\n$\sigma$ =%.2f'%(np.mean(d_pmy_ga_m.value),np.std(d_pmy_ga_m.value)))
 ax.set_xlabel('$\Delta \mu_{x}$ [mas/yr]')
 ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
-ax.axvline(lxy[0], ls = 'dashed', color = 'r')
+ax.axvline(lxy[0], ls = 'dashed', color = 'r', label = f'{sig_ga}$\sigma$')
 ax.axvline(lxy[1], ls = 'dashed', color = 'r')
 ax2.axvline(lxy[2], ls = 'dashed', color = 'r')
 ax2.axvline(lxy[3], ls = 'dashed', color = 'r')
 ax.legend()
 ax2.legend()
-sys.exit(581)
+
+# %
+fig, (ax,ax2) = plt.subplots(1,2)
+
+ax.hist(d_pmx_ga, bins = bins, color = 'k', alpha = 0.2)
+ax2.hist(d_pmy_ga, bins = bins,color = 'k', alpha = 0.2)
+ax.hist(d_pmx_ga_m, bins = bins, histtype = 'step', label = '$\overline{\Delta\mu}_{x}$ = %.2f\n$\sigma$ = %.2f'%(np.mean(d_pmx_ga_m.value),np.std(d_pmx_ga_m.value)))
+ax2.hist(d_pmy_ga_m, bins = bins, histtype = 'step',label = '$\overline{\Delta\mu}_{y}$ = %.2f\n$\sigma$ = %.2f'%(np.mean(d_pmy_ga_m.value),np.std(d_pmy_ga_m.value)))
+ax.set_xlabel('$\Delta \mu_{x}$ [mas/yr]')
+ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
+ax.axvline(lxy[0], ls = 'dashed', color = 'r')
+ax.axvline(lxy[1], ls = 'dashed', color = 'r')
+ax2.axvline(lxy[2], ls = 'dashed', color = 'r')
+ax2.axvline(lxy[3], ls = 'dashed', color = 'r')
+ax.legend(fontsize = 15)
+ax2.legend(fontsize = 15)
+ax.set_ylabel('# stars')
+meta = {'Script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/SUPER_alignment.py'}
+plt.savefig('/Users/amartinez/Desktop/PhD/My_papers/SgrB1_cluster/images/gaia_resi_pm.png', bbox_inches='tight', pad_inches=0, dpi = 150, edgecolor = 'white', transparent = True, metadata = meta)
+
+
+
+# %%
+
+    
+
+#
+# Create the figure and gridspec layout
+fig_g = plt.figure(figsize=(4, 4))
+gs = fig_g.add_gridspec(2, 2, width_ratios=[4, 1], height_ratios=[1, 4], hspace=0, wspace=0)
+
+# Main scatter plot
+axg = fig_g.add_subplot(gs[1, 0])
+axg.scatter(d_pmx_ga_m, d_pmy_ga_m, s=200, edgecolor='k', zorder=3)
+axg.set_xlabel(r'$\Delta \mu_{l}$ [mas/yr]', fontsize=16)
+axg.set_ylabel(r'$\Delta \mu_{b}$ [mas/yr]', fontsize=16)
+axg.set_title(f'Gaia matches {len(d_pmy_ga_m)} Max sep = {max_sep_ga}', fontsize=12)
+axg.grid()
+
+props = dict(boxstyle='round', facecolor='lightblue', alpha=0.5)
+axg.text(0.05, 0.95,
+         '$\sigma_x$ = %.2f mas/yr\n$\sigma_y$ = %.2f mas/yr' % (np.std(d_pmx_ga_m), np.std(d_pmy_ga_m)),
+         transform=axg.transAxes, fontsize=12, verticalalignment='top', bbox=props)
+axg.tick_params(axis='both', labelsize=12)
+
+# Histogram on the top
+ax_histx = fig_g.add_subplot(gs[0, 0], sharex=axg)
+ax_histx.hist(d_pmx_ga_m, bins='auto', histtype='step', linewidth=1.5, color='k')
+ax_histx.tick_params(axis='x', labelbottom=False)
+ax_histx.set_yticks([])
+ax_histx.axis('off')
+
+# Histogram on the right
+ax_histy = fig_g.add_subplot(gs[1, 1], sharey=axg)
+ax_histy.hist(d_pmy_ga_m, bins='auto', orientation='horizontal', histtype='step', linewidth=1.5, color='k')
+ax_histy.tick_params(axis='y', labelleft=False)
+ax_histy.set_xticks([])
+ax_histy.axis('off')
+
+plt.show()
+from PIL import Image, PngImagePlugin
+meta = {'Title': 'v-p.png','script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_absolute_SUPER/SUPER_alignment.py'}
+plt.savefig('/Users/amartinez/Desktop/for_people/for_Rainer/v-p_rel.png', transparent=True, bbox_inches = 'tight', metadata = meta)
+# %%
+
+pm_gns_p = np.hypot(gns_ga_m['pm_x'], gns_ga_m['pm_y'])
+pm_ga_eq = np.hypot(ga_gns_m['pmra'], ga_gns_m['pmdec'])
+# pm_ga_eq = np.hypot(ga_gns_m['pm_x'], ga_gns_m['pm_y'])
+
+resid = pm_gns_p - pm_ga_eq
+print('Differnces between Gaia pm and Gaia pm proyected')
+print('Comoponete are differente, but modules of the vetors invariant under transformations')
+print("σ(Δμ):", np.std(resid))
+print("mean(Δμ):", np.mean(resid_mu))
+print("σ(μra - μra_p):", np.std(gns_ga_m['pm_x'] - ga_gns_m['pmra']))
+print("σ(μdec - μdec_p):",np.std(gns_ga_m['pm_y'] - ga_gns_m['pmdec']))
+print("σ(μp - μra_p):", np.std(gns_ga_m['pm_x'] - ga_gns_m['pm_x']))
+print("σ(μp - μdec_p):",np.std(gns_ga_m['pm_y'] - ga_gns_m['pm_y']))
+
+# fig, ax = plt.subplots(1,1)
+# ax.hist(resid)
+# %%
+
+# Create the figure and gridspec layout
+fig, ax = plt.subplots(figsize=(6, 6))
+
+
+# Main scatter plot
+cax = ax.scatter(d_pmx_ga_m, d_pmy_ga_m, s=200, edgecolor='k', zorder=1, c = np.sqrt(e_dpmx_m**2 +e_dpmy_m**2), cmap = 'Spectral_r')
+cb = fig.colorbar(cax, ax = ax,fraction = 0.0275, aspect = 30)
+ax.set_xlabel(r'$\Delta \mu_{x}$ [mas/yr]', fontsize=16)
+ax.set_ylabel(r'$\Delta \mu_{y}$ [mas/yr]', fontsize=16)
+
+# ax.set_title(f'Gaia matches {len(d_pmy_ga_m)} Max sep = {max_sep_ga}', fontsize=12)
+ax.grid()
+ax.axis('scaled')
+
+cb.set_label(' (ℓ, b) []', fontsize=20, labelpad = 20) 
+
+props = dict(boxstyle='round', facecolor='white', alpha=1)
+ax.text(0.3, 1.65,
+         '$\sigma_x$ = %.2f mas/yr\n$\sigma_y$ = %.2f mas/yr' % (np.std(d_pmx_ga_m), np.std(d_pmy_ga_m)),
+         transform=axg.transAxes, fontsize=20, verticalalignment='top', bbox=props)
+
+sys.exit(832)
+# %%
+
+
 # %%  
-# mu_eq = np.hypot(ga_gns['pm_l'], ga_gns['pm_b'])
-# mu_gal = np.hypot(gns_ga['pm_x'],gns_ga['pm_y'])
-
-# resid_mu = mu_eq - mu_gal
-# print("σ(Δμ):", np.std(resid_mu))
-
-
+num_bins = 8
+statistic, x_edges, y_edges, binnumber = stats.binned_statistic_2d(d_pmx_ga_m, d_pmy_ga_m, np.sqrt(e_dpmx_m**2 +e_dpmy_m**2), statistic='median', bins=(num_bins))
+# Create a meshgrid for plotting
+X, Y = np.meshgrid(x_edges, y_edges)
+fig, ax = plt.subplots(figsize=(6, 6))
+# c = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r', norm = LogNorm() ) 
+cax = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r') 
+fig.colorbar(cax, ax = ax)
+ax.set_xlabel(r'$\Delta \mu_{l}$ [mas/yr]', fontsize=16)
+ax.set_ylabel(r'$\Delta \mu_{b}$ [mas/yr]', fontsize=16)
+# ax.set_title(f'Gaia matches {len(d_pmy_ga_m)} Max sep = {max_sep_ga}', fontsize=12)
+ax.grid()
+ax.axis('scaled')
 # %%
 m_for_g = (gns1_m['H']>gns_mags[0]) & (gns1_m['H']<gns_mags[1])
 gns1_m = gns1_m[m_for_g]
@@ -622,7 +961,8 @@ gaia = filter_gaia_data(
     phot_g_mean_mag_max=gaia_mags[0],
     pm_min=0,
     pmra_error_max=e_pm,
-    pmdec_error_max=e_pm
+    pmdec_error_max=e_pm,
+    min_angular_separation_arcsec = 0.5
     )
 
 
@@ -664,6 +1004,9 @@ ax2.axvline(lga[3], ls = 'dashed', color = 'r')
 ax.legend()
 ax2.legend()
 
+
+
+
 # %%
 ga_c = SkyCoord(ra=gaia['ra'], dec=gaia['dec'],
                 pm_ra_cosdec=gaia['pmra'],
@@ -678,7 +1021,7 @@ dga_dec = (ga_icrs_back.pm_dec - ga_c.pm_dec)
 
 m_ga, lga = sig_f(dga_ra, dga_dec ,3)
 
-dga_ram = dga_ra[m_ga]
+dga_ram = dga_ra[m_ga]  
 dga_decm = dga_dec[m_ga]
 
 fig, (ax,ax2) = plt.subplots(1,2)
@@ -697,11 +1040,7 @@ ax2.axvline(lga[3].value, ls = 'dashed', color = 'r')
 ax.legend()
 ax2.legend()
 # %%
-mu_eq = np.hypot(gaia['pmra'], gaia['pmdec'])
-mu_gal = np.hypot(gaia['pm_l'], gaia['pm_b'])
 
-resid_mu = mu_eq - mu_gal
-print("σ(Δμ):", np.std(resid_mu))
 
 # %%
 

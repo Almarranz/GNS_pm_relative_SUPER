@@ -6,6 +6,14 @@ Created on Fri Nov  8 12:42:20 2024
 @author: amartinez
 """
 
+# =============================================================================
+# NOTE:
+#     
+#     use in the terminal with the command:
+#         
+#         cat loops_ls.txt | parallel -j 10 "python bs_SUPER_alignment.py {}"
+# 
+# =============================================================================
 import numpy as np
 import matplotlib.pyplot as plt
 from compare_lists import compare_lists 
@@ -36,8 +44,7 @@ from astroquery.gaia import Gaia
 import astroalign as aa
 from filters import filter_gaia_data
 from filters import filter_gns_data
-from filters import filter_gns_by_percentile
-from alignator_looping import alg_loop
+from bs_alignator_looping import bs_alg_loop
 from scipy import stats
 # %% 
 # %%plotting parametres
@@ -77,8 +84,8 @@ field_one = 'B1'
 chip_one = 0
 field_two = 20
 chip_two = 0
-
-
+bs_loop = sys.argv[1]
+# bs_loop = 1
 if field_one == 7 or field_one == 12 or field_one == 10 or field_one == 16:
     t1 = Time(['2015-06-07T00:00:00'],scale='utc')
 elif field_one == 'B6':
@@ -120,9 +127,9 @@ center_only = 'no'
 
 
 max_loop = 3
-gns_mags = [12,19]#!!! GNS mag limtis
-max_sig = 0.03
-e_pm_gns = 2#!!!error cut in proper motions
+gns_mags = [12,18]#!!! GNS mag limtis
+max_sig = 0.1
+e_pm_gns = 3#!!!error cut in proper motions
 # max_sig = 0.05
 # use_grid = 'yes'
 use_grid = 'no'
@@ -133,7 +140,7 @@ sig_cl = 3#!!!
 max_deg =4
 
 d_m = 30*u.mas#!!!in arcse, max distance  for the fine alignment betwenn GNS1 and 2
-d_m_pm = 100#!!! in arcs, max distance for the proper motions
+d_m_pm = 150#!!! in arcs, max distance for the proper motions
 destination = 2 #!!! GNS1 is reference
 # destination = 2 #!!! GNS2 is reference
 align_by = 'Polywarp'#!!!
@@ -158,20 +165,27 @@ GNS_2='/Users/amartinez/Desktop/PhD/HAWK/GNS_2/lists/%s/chip%s/'%(field_two, chi
 pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_SUPER/pruebas/'
 pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_SUPER/pruebas/'
 
+bs1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_SUPER/bootstrapping/'
+bs2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_SUPER/bootstrapping/'
+
+# gns1 = Table.read(GNS_1 + 'stars_calibrated_H_chip%s.ecsv'%(chip_one),  format = 'ascii.ecsv')
+# gns2 = Table.read(GNS_2 + 'stars_calibrated_H_chip%s.ecsv'%(chip_two), format = 'ascii.ecsv')
+# gns1 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS1/H/F06/B6_lxp_cal.ecsv',  format = 'ascii.ecsv')
+# gns2 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS2/H/F20/20_lxp_cal.ecsv', format = 'ascii.ecsv')
+# gns1 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS1/H/F06/B6_H_opti.ecsv',  format = 'ascii.ecsv')
+# gns2 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS2/H/F20/20_H_opti_fcalib.ecsv', format = 'ascii.ecsv')
+
 gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
+# gns1 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F_B1_B6/B1_B6_H_chips_opti.ecsv',  format = 'ascii.ecsv')
+# gns1 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/FB1/B1_and_B6_comb.ecsv',  format = 'ascii.ecsv')
 
-bin_width = 0.1
-perc_H = 85
-perc_lb = 100
-gns1 = filter_gns_by_percentile(gns1, mag_col='H', err_col='dH', sl_col='sl', sb_col='sb', bin_width=bin_width, percentile_H=perc_H, percentile_lb=perc_lb, mag_lim = None, pos_lim = None)
-
-fig, (ax, ax2) = plt.subplots(1,2, figsize = (20,10))
+fig, (ax, ax2) = plt.subplots(1,2)
 ax.hist2d(gns1['H'],gns1['sl'], bins = 100,norm = LogNorm())
 his = ax2.hist2d(gns1['H'],gns1['sb'], bins = 100,norm = LogNorm())
 fig.colorbar(his[3], ax =ax2)
 ax.set_title('GNS1')
-ax.set_ylabel('$\sigma l$ [arcsec]')
-ax2.set_ylabel('$\sigma b$ [arcsec]')
+ax.set_ylabel('$\delta l$ [arcsec]')
+ax2.set_ylabel('$\delta b$ [arcsec]')
 ax.set_xlabel('[H]')
 ax2.set_xlabel('[H]')
 fig.tight_layout()
@@ -220,6 +234,21 @@ if gns_mags[1] is not None:
 
 gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
 
+fig2, (ax_2, ax2_2) = plt.subplots(1,2)
+ax_2.set_title('GNS2')
+ax_2.hist2d(gns2['H'],gns2['sl'],cmap = 'inferno', bins = 100,norm = LogNorm())
+his = ax2_2.hist2d(gns2['H'],gns2['sb'],cmap = 'inferno', bins = 100,norm = LogNorm())
+fig2.colorbar(his[3], ax =ax2_2)
+ax_2.set_ylabel('$\delta l$ [arcsec]')
+ax2_2.set_ylabel('$\delta b$ [arcsec]')
+ax2_2.set_xlabel('[H]')
+ax_2.set_xlabel('[H]')
+fig2.tight_layout()
+ax_2.axhline(max_sig,ls = 'dashed', color = 'r')
+if gns_mags[1] is not None:
+    ax_2.axvline(gns_mags[1],ls = 'dashed', color = 'r')
+
+
 
 
 buenos1 = (gns1['l']>min(gns2['l'])) & (gns1['l']<max(gns2['l'])) & (gns1['b']>min(gns2['b'])) & (gns1['b']<max(gns2['b']))
@@ -232,35 +261,6 @@ buenos2 = (gns2['l']>min(gns1['l'])) & (gns2['l']<max(gns1['l'])) & (gns2['b']>m
 
 gns2 = gns2[buenos2]
 gns2['ID'] = np.arange(len(gns2))
-gns2 = filter_gns_by_percentile(gns2, mag_col='H', err_col='dH', sl_col='sl', sb_col='sb', bin_width=bin_width, percentile_H=perc_H, percentile_lb=perc_lb, mag_lim = None, pos_lim = None)
-
-fig, (ax,ax2) = plt.subplots(1,2, figsize = (20,10))
-ax.scatter(gns1['l'],gns1['b'],color = 'blue',s = 0.1,label = 'GNS1')
-ax2.scatter(gns2['l'],gns2['b'],s=0.1, color = 'orange', label = 'GNS2')
-ax2.legend()
-ax.legend()
-ax.axis('equal')
-ax2.axis('equal')
-sys.exit(240)
-
-fig2, (ax_2, ax2_2) = plt.subplots(1,2, figsize = (16,8)) 
-ax_2.set_title('GNS2')
-ax_2.hist2d(gns2['H'],gns2['sl'],cmap = 'inferno', bins = (200),norm = LogNorm())
-his = ax2_2.hist2d(gns2['H'],gns2['sb'],cmap = 'inferno', bins = 100,norm = LogNorm())
-fig2.colorbar(his[3], ax =ax2_2)
-ax_2.set_ylabel('$\delta l$ [arcsec]')
-ax2_2.set_ylabel('$\delta b$ [arcsec]')
-ax2_2.set_xlabel('[H]')
-ax_2.set_xlabel('[H]')
-fig2.tight_layout()
-ax_2.axhline(max_sig,ls = 'dashed', color = 'r')
-if gns_mags[1] is not None:
-    ax_2.axvline(gns_mags[1],ls = 'dashed', color = 'r')
-
-ax_2.set_xlim(12,23)
-ax_2.set_ylim(0.00,0.125)
-
-
 all_2 = len(gns2)
 
 gns1 = filter_gns_data(gns1, max_e_pos = max_sig, max_mag = gns_mags[0], min_mag = gns_mags[1] )
@@ -292,7 +292,6 @@ gns1['yp'] = gns1_t.lat.to(u.arcsec)
 gns2['xp'] = gns2_t.lon.to(u.arcsec)
 gns2['yp'] = gns2_t.lat.to(u.arcsec)
 
-sys.exit(286)
 
 # %%
 
@@ -314,7 +313,7 @@ ax.set_ylabel('b')
 # ax.axis('scaled')
 ax.axis('equal')
 meta = {'Script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/SUPER_alignment.py'}
-plt.savefig('/Users/amartinez/Desktop/PhD/My_papers/SgrB1_cluster/images/dpos_lb.png', bbox_inches='tight', pad_inches=0, dpi = 300, edgecolor = 'white', transparent = True, metadata = meta)
+# plt.savefig('/Users/amartinez/Desktop/PhD/My_papers/SgrB1_cluster/images/dpos_lb.png', bbox_inches='tight', pad_inches=0, dpi = 300, edgecolor = 'white', transparent = True, metadata = meta)
 
 
 # sys.exit(275)
@@ -429,7 +428,7 @@ if destination == 1:
     
     # gns2 = alg_rel(gns2, gns1,'xp', 'yp', align_by,use_grid,max_deg = max_deg, d_m = d_m,f_mode = f_mode,grid_s = grid_s )
     # def alg_loop(gns_A, gns_B,col1, col2, align_by, max_deg, d_m,                        max_loop,  use_grid,grid_s= None, f_mode = None  ) :
-    gns2 = alg_loop(gns2, gns1, 'xp', 'yp', align_by, max_deg, d_m.to(u.arcsec).value, max_loop, use_grid ='no', f_mode = f_mode,sig_cl_H = sig_cl_H_aligment)
+    gns2 = bs_alg_loop(gns2, gns1, 'xp', 'yp', align_by, max_deg, d_m.to(u.arcsec).value, max_loop, use_grid ='no', f_mode = f_mode,sig_cl_H = sig_cl_H_aligment)
 
 if destination == 2:
     # Time lapse to move Gaia Stars.
@@ -465,7 +464,7 @@ if destination == 2:
     
     
     # gns1 = alg_rel(gns1, gns2,'xp', 'yp', align_by,use_grid,max_deg = max_deg, d_m = d_m,f_mode = f_mode,grid_s= grid_s )
-    gns1 = alg_loop(gns1, gns2, 'xp', 'yp', align_by, max_deg, d_m.to(u.arcsec).value, max_loop,sig_cl_H = sig_cl_H_aligment, use_grid ='no',f_mode = f_mode)
+    gns1 = bs_alg_loop(gns1, gns2, 'xp', 'yp', align_by, max_deg, d_m.to(u.arcsec).value, max_loop,sig_cl_H = sig_cl_H_aligment, use_grid ='no',f_mode = f_mode)
 
 # sys.exit(202) 
 # %%
@@ -486,8 +485,8 @@ dy = (gns2_mi['yp'].value- gns1_mi['yp'].value)*1000
 pm_x = (dx*u.mas)/dt.to(u.year)
 pm_y = (dy*u.mas)/dt.to(u.year)
 
-dpm_x = np.sqrt((gns2_mi['sl'].to(u.mas))**2 + (gns1_mi['sl'].to(u.mas))**2)/dt.to(u.year)
-dpm_y = np.sqrt((gns2_mi['sb'].to(u.mas))**2 + (gns1_mi['sb'].to(u.mas))**2)/dt.to(u.year)
+dpm_x = (1/dt.to(u.year))*np.sqrt((gns2_mi['sl'].to(u.mas))**2 + (gns1_mi['sl'].to(u.mas))**2)
+dpm_y = (1/dt.to(u.year))*np.sqrt((gns2_mi['sb'].to(u.mas))**2 + (gns1_mi['sb'].to(u.mas))**2)
 
        
 
@@ -537,7 +536,8 @@ gns1_mi.meta['destination'] = destination
 gns1_mi.meta['align_by'] = align_by
 gns1_mi.meta['f_mode'] = f_mode
 
-gns1_mi.write(pruebas1 + f'gns1_pmSuper_F1_{field_one}_F2_{field_two}.ecsv', format = 'ascii.ecsv', overwrite = True)
+if destination ==2:
+    gns1_mi['xp','yp','ID','l','b'].write(bs1 + f'BS{bs_loop}_gns1_pmSuper_F1_{field_one}_F2_{field_two}.ecsv', format = 'ascii.ecsv', overwrite = True)
 
 gns2_mi.meta['max_loop'] = max_loop
 gns2_mi.meta['gns_mags'] = gns_mags
@@ -556,9 +556,10 @@ gns2_mi.meta['destination'] = destination
 gns2_mi.meta['align_by'] = align_by
 gns2_mi.meta['f_mode'] = f_mode
 
-gns2_mi.write(pruebas2 + f'gns2_pmSuper_F1_{field_one}_F2_{field_two}.ecsv', format = 'ascii.ecsv', overwrite = True)
+if destination == 1:
+    gns2_mi['xp','yp','ID','l','b'].write(bs1 + f'BS{bs_loop}_gns2_pmSuper_F1_{field_one}_F2_{field_two}.ecsv', format = 'ascii.ecsv', overwrite = True)
 
-
+sys.exit(555)
 
 # %%
 # e_pm_gns = 2##
@@ -567,7 +568,7 @@ gns2_m = filter_gns_data(gns2_mi, max_e_pm = e_pm_gns)
 
 
 gns1 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/scamp/lxp/GNS1/H/F06/B6_H_chips_opti.ecsv',  format = 'ascii.ecsv')
-fig, (ax, ax2) = plt.subplots(1,2, figsize = (20,10))
+fig, (ax, ax2) = plt.subplots(1,2)
 ax.hist2d(gns1_mi['H'],gns1_mi['dpm_x'], bins = 100,norm = LogNorm())
 his = ax2.hist2d(gns1_mi['H'],gns1_mi['dpm_y'], bins = 100,norm = LogNorm())
 fig.colorbar(his[3], ax =ax2)
@@ -578,7 +579,7 @@ ax.set_xlabel('[H]')
 ax2.set_xlabel('[H]')
 fig.tight_layout()
 ax.axhline(np.median(gns1_m['dpm_x']),ls = 'dashed', color = 'r', label = 'Median %.2f' %(np.median(gns1_m['dpm_x'])))
-ax.axhline(e_pm_gns, color = 'k', label = f'Max Epm = {e_pm_gns}' )
+ax.axhline(e_pm_gns, color = 'k', label = 'Max Epm' )
 ax2.axhline(np.median(gns1_m['dpm_y']),ls = 'dashed', color = 'r')
 ax2.axhline(e_pm_gns, color = 'k', label = 'Max Epm' )
 # ax2.axhline(2,ls = 'dashed', color = 'r')
@@ -945,30 +946,28 @@ ax2.axvline(lxy[3], ls = 'dashed', color = 'r')
 ax.legend()
 ax2.legend()
 
-
 sys.exit(936)
 # %%
 
 
 # %
-fig, (ax,ax2) = plt.subplots(1,2)
+# fig, (ax,ax2) = plt.subplots(1,2)
 
-ax.hist(d_pmx_ga, bins = bins, color = 'k', alpha = 0.2)
-ax2.hist(d_pmy_ga, bins = bins,color = 'k', alpha = 0.2)
-ax.hist(d_pmx_ga_m, bins = bins, histtype = 'step', label = '$\overline{\Delta\mu}_{x}$ = %.2f\n$\sigma$ = %.2f'%(np.mean(d_pmx_ga_m.value),np.std(d_pmx_ga_m.value)))
-ax2.hist(d_pmy_ga_m, bins = bins, histtype = 'step',label = '$\overline{\Delta\mu}_{y}$ = %.2f\n$\sigma$ = %.2f'%(np.mean(d_pmy_ga_m.value),np.std(d_pmy_ga_m.value)))
-ax.set_xlabel('$\Delta \mu_{x}$ [mas/yr]')
-ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
-ax.axvline(lxy[0], ls = 'dashed', color = 'r')
-ax.axvline(lxy[1], ls = 'dashed', color = 'r')
-ax2.axvline(lxy[2], ls = 'dashed', color = 'r')
-ax2.axvline(lxy[3], ls = 'dashed', color = 'r')
-ax.legend(fontsize = 15)
-ax2.legend(fontsize = 15, loc = 2)
-ax.set_ylabel('# stars')
-fig.tight_layout()
-meta = {'Script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/SUPER_alignment.py'}
-plt.savefig('/Users/amartinez/Desktop/PhD/My_papers/GNS_pm_catalog/images/gaia_resi_pm.png', dpi = 150, transparent = True, metadata = meta)
+# ax.hist(d_pmx_ga, bins = bins, color = 'k', alpha = 0.2)
+# ax2.hist(d_pmy_ga, bins = bins,color = 'k', alpha = 0.2)
+# ax.hist(d_pmx_ga_m, bins = bins, histtype = 'step', label = '$\overline{\Delta\mu}_{x}$ = %.2f\n$\sigma$ = %.2f'%(np.mean(d_pmx_ga_m.value),np.std(d_pmx_ga_m.value)))
+# ax2.hist(d_pmy_ga_m, bins = bins, histtype = 'step',label = '$\overline{\Delta\mu}_{y}$ = %.2f\n$\sigma$ = %.2f'%(np.mean(d_pmy_ga_m.value),np.std(d_pmy_ga_m.value)))
+# ax.set_xlabel('$\Delta \mu_{x}$ [mas/yr]')
+# ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
+# ax.axvline(lxy[0], ls = 'dashed', color = 'r')
+# ax.axvline(lxy[1], ls = 'dashed', color = 'r')
+# ax2.axvline(lxy[2], ls = 'dashed', color = 'r')
+# ax2.axvline(lxy[3], ls = 'dashed', color = 'r')
+# ax.legend(fontsize = 15)
+# ax2.legend(fontsize = 15)
+# ax.set_ylabel('# stars')
+# meta = {'Script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/SUPER_alignment.py'}
+# plt.savefig('/Users/amartinez/Desktop/PhD/My_papers/SgrB1_cluster/images/gaia_resi_pm.png', bbox_inches='tight', pad_inches=0, dpi = 150, edgecolor = 'white', transparent = True, metadata = meta)
 
 
 

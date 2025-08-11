@@ -16,6 +16,7 @@ Returns:
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy import units as u 
+from astropy.table import vstack
 
 def filter_gaia_data(gaia_table, 
                      astrometric_params_solved=None, 
@@ -60,28 +61,22 @@ def filter_gaia_data(gaia_table,
     
     filtered_table = gaia_table[mask]
     
-    if min_angular_separation_arcsec is not None and len(filtered_table) > 1:
-        coords = SkyCoord(ra=filtered_table['ra'],
-                          dec=filtered_table['dec'])
+    # if min_angular_separation_arcsec is not None and len(filtered_table) > 1:
+    #     coords = SkyCoord(ra=filtered_table['ra'],
+    #                       dec=filtered_table['dec'])
         
-        # Compute pairwise separations
-        # sep_matrix = coords.separation(coords).to(u.arcsec)
-        sep_matrix = coords[:, None].separation(coords[None, :]).to(u.arcsec)
-        # Create a boolean mask to identify stars to keep
-        # Initially, all are assumed valid
-        # close_pairs = (sep_matrix < min_angular_separation_arcsec) & (sep_matrix > 0*u.arcsec)
-        print(sep_matrix)
-        # close_pairs = (sep_matrix < min_angular_separation_arcsec) & (sep_matrix > 0*u.arcsec)
-        close_pairs = (sep_matrix < min_angular_separation_arcsec) & (sep_matrix > 0*u.arcsec)
-        print(close_pairs)
+    #     # Compute pairwise separations
+    #     sep_matrix = coords[:, None].separation(coords[None, :]).to(u.arcsec)
+        
+    #     close_pairs = (sep_matrix < min_angular_separation_arcsec) & (sep_matrix > 0*u.arcsec)
+       
+    #     # Find indices involved in close pairs
+    #     to_remove = np.unique(np.where(close_pairs)[0])
 
-        # Find indices involved in close pairs
-        to_remove = np.unique(np.where(close_pairs)[0])
-
-        # Remove stars involved in close pairs
-        final_mask = np.ones(len(filtered_table), dtype=bool)
-        final_mask[to_remove] = False
-        filtered_table = filtered_table[final_mask]
+    #     # Remove stars involved in close pairs
+    #     final_mask = np.ones(len(filtered_table), dtype=bool)
+    #     final_mask[to_remove] = False
+    #     filtered_table = filtered_table[final_mask]
 
     return filtered_table
 
@@ -142,6 +137,78 @@ def filter_gns_data(gns_table,
         mask &= (gns_table['dpm_x'] < max_e_pm) & (gns_table['dpm_y'] < max_e_pm)
 
     return gns_table[mask]
+
+
+def filter_gns_by_percentile(gns_table, mag_col='H', err_col='dH', sl_col='sl', sb_col='sb', bin_width=None, percentile_H = None, percentile_lb = None, mag_lim = None, pos_lim = None):
+    """
+    Filter stars in magnitude bins based on the 85th percentile of photometric and positional uncertainties.
+
+    Parameters
+    ----------
+    gns_table : astropy.table.Table
+        The input table with columns for magnitude, uncertainty, and position errors.
+    mag_col : str
+        Name of the magnitude column (e.g., 'H').
+    err_col : str
+        Name of the magnitude uncertainty column (e.g., 'dH').
+    sl_col, sb_col : str
+        Names of the positional uncertainty columns.
+    bin_width : float
+        Width of the magnitude bins.
+    percentile : float
+        Percentile cutoff (default is 85).
+
+    Returns
+    -------
+    filtered_table : astropy.table.Table
+        Table with rows that pass the percentile thresholding.
+    """
+    # Assuming gns1 is your input Table
+    H = gns_table['H']
+    pos_err = np.sqrt(gns_table['sl']**2 + gns_table['sb']**2)
+
+    # Add temporary column for position uncertainty
+    gns_table['pos_err'] = pos_err
+
+    # Define bins
+    H_min, H_max = np.nanmin(H), np.nanmax(H)
+    bins = np.arange(H_min, H_max + bin_width, bin_width)
+
+    # Container for filtered results
+    filtered_tables = []
+
+    # Iterate over H-magnitude bins
+    for i in range(len(bins)-1):
+        bin_mask = (H >= bins[i]) & (H < bins[i+1])
+        bin_data = gns_table[bin_mask]
+
+        if len(bin_data) == 0:
+            continue
+
+        # Compute 85th percentiles
+        dH_thresh = np.percentile(bin_data['dH'], percentile_H)
+        pos_thresh = np.percentile(bin_data['pos_err'], percentile_lb)
+        l_thresh = np.percentile(bin_data['sl'], percentile_lb)
+        b_thresh = np.percentile(bin_data['sb'], percentile_lb)
+
+        # Apply selection criteria
+        good_mask = (bin_data['dH'] <= dH_thresh) & (bin_data['sl'] <= l_thresh) & (bin_data['sb'] <= b_thresh)
+        filtered_tables.append(bin_data[good_mask])
+    
+    
+    filtered_table = vstack(filtered_tables)
+    
+    if mag_lim is not None:
+        mH = filtered_table['H'] < mag_lim
+        filtered_table = filtered_table[mH]
+    if pos_lim is not None:
+        
+        unc_cut = np.where((filtered_table['sl']<pos_lim) & (filtered_table['sb']<pos_lim))
+        filtered_table  = filtered_table[unc_cut]
+        
+    
+    return filtered_table
+    
 
 def filter_vvv_data(vvv_table,
                     pmRA = None,

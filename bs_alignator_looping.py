@@ -43,7 +43,16 @@ from grid import grid_stars
      aligned gns_A table
  """
 
-def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,use_grid,sig_cl_H,dm_plots = None, grid_s= None, f_mode = None  ) :
+def bs_alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,use_grid,sig_cl_H,dm_plots = None, grid_s= None, f_mode = None  ) :
+    
+    N = len(gns_B)
+
+    # Bootstrap: sample N indices with replacement
+    idx = np.random.randint(0, N, size=N)
+    
+    # New bootstrap sample table
+    gns_B = gns_B[idx]
+    
     loop = 0
     deg = 1
     # max_loop= 10
@@ -66,13 +75,18 @@ def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,use_grid,sig
         
         l2_xy = np.array([gns2_g[col1],gns2_g[col2]]).T
     else:
+       
         l2_xy = np.array([gns_B[col1],gns_B[col2]]).T
-    
+        
+        
+        
     while deg < max_deg:
         loop += 1 
         l1_xy = np.array([gns_A[col1],gns_A[col2]]).T
         
         comp = compare_lists(l1_xy,l2_xy,d_m)
+       
+        
         if len(comom_ls) >1:
             # if comom_ls[-1] < comom_ls[-2]:
             if (comom_ls[-1] <= comom_ls[-2]) and loop >= max_loop:
@@ -97,8 +111,8 @@ def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,use_grid,sig
         
         diff_mag = l1_com['H'] - l2_com['H'] 
         # diff_mag1 = l1_com['IB230_diff'] - l2_com['IB230_diff'] 
-        diff_x =  l2_com['x'] - l1_com['x'] 
-        diff_y =  l2_com['y'] - l1_com['y'] 
+        diff_x =  l2_com[col1] - l1_com[col1] 
+        diff_y =  l2_com[col2] - l1_com[col2] 
         diff_xy = (diff_x**2 + diff_y**2)**0.5
         mask_m, l_lim,h_lim = sigma_clip(diff_mag, sigma=sig_cl, masked = True, return_bounds= True)
         

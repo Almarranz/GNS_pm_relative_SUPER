@@ -147,7 +147,7 @@ for degree in range(degree,degree+1):
     fig, ax = plt.subplots(1,1,figsize = (10,10))
     num_bins = (50,25)
     statistic, x_edges, y_edges, binnumber = binned_statistic_2d(uncer_pos[:,4],uncer_pos[:,5],
-                                                                 np.sqrt((uncer_pos[:,2])**2+(uncer_pos[:,3])**2) , 
+                                                                 (uncer_pos[:,2]) + (uncer_pos[:,3])/2 , 
                                                                  statistic='mean', bins=(num_bins))
     X, Y = np.meshgrid(x_edges, y_edges)
     # im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',norm=colors.LogNorm())
@@ -163,7 +163,7 @@ for degree in range(degree,degree+1):
     ax.invert_xaxis()
 
     
-    cbar = fig.colorbar(im, label = 'Alignment uncertainty [mas]', fraction = 0.0218 )
+    cbar = fig.colorbar(im, label = '$\overline{\sigma}_{(l,b)}$ [mas]', fraction = 0.0218 )
     # cbar.ax.set_yticklabels([])
     # cbar.ax.set_yticklabels([0.5,'',1, 2])
     cbar.ax.tick_params(size=8,width=1,direction='out')
@@ -174,7 +174,7 @@ for degree in range(degree,degree+1):
     
     meta = {'scrip':'/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/bs_uncert_offsets.py'}
     article = '/Users/amartinez/Desktop/PhD/My_papers/GNS_pm_catalog/images/'
-    # plt.savefig(article + 'alig_error.png', bbox_inches='tight', transparent = 'True', dpi = 150, metadata = meta)
+    plt.savefig(article + 'alig_error.png', bbox_inches='tight', transparent = 'True', dpi = 150, metadata = meta)
     plt.show()
 # statistic, x_edges, y_edges, binnumber = binned_statistic_2d(x, y, vx*-1, statistic='median', bins=(num_bins))
 # # statistic, x_edges, y_edges, binnumber = binned_statistic_2d(x_, y_, vx_, statistic='median', bins=(num_bins))

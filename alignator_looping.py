@@ -15,6 +15,7 @@ from astropy.modeling.models import Polynomial2D
 from astropy.modeling.fitting import LinearLSQFitter
 from astropy.modeling import models, fitting
 from grid import grid_stars
+from matplotlib.colors import LogNorm
 """
  Iteratively aling gns_A (source) to gns_B (destination)
  Parameters:
@@ -43,30 +44,45 @@ from grid import grid_stars
      aligned gns_A table
  """
 
-def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,use_grid,sig_cl_H,dm_plots = None, grid_s= None, f_mode = None  ) :
+def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,sig_cl_H, grid_s = None, grid_Hmin = None, grid_Hmax = None,isolation_radius = None,dm_plots = None, f_mode = None, mag_lim_alig = None  ) :
     loop = 0
     deg = 1
     # max_loop= 10
     sig_cl = sig_cl_H
     comom_ls = []
    
-    l2_xy = np.array([gns_B[col1],gns_B[col2]]).T
-    if use_grid == 'yes':
+    if mag_lim_alig is not None:
+        
+        mask_H = (gns_B['H'] < mag_lim_alig[1]) & (gns_B['H'] > mag_lim_alig[0])
+        gns_B = gns_B[mask_H]
+        
+    
+        fig, ax = plt.subplots(1,1)
+        ax.set_title(f'Ref. Mag selected stars H =[{mag_lim_alig[0]},{mag_lim_alig[1]}]')
+        ax.scatter(gns_B['x'], gns_B['y'],s =1, label = f'Ref. stars {len(gns_B)}')
+        # ax.hist2d(l2_clip['x'], l2_clip['y'],bins = 100, norm = LogNorm())
+ 
+   
+    if grid_s is not None:
         # def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size=50, isolation_radius=0.5):
-        gns2_g, x_ed, y_ed = grid_stars(gns_B,'xg','yg','H',12,16,grid_size=grid_s,isolation_radius=0.7)
+        gns2_g, x_ed, y_ed = grid_stars(gns_B,col1,col2,'H',grid_Hmin,grid_Hmax,grid_size=grid_s,isolation_radius = isolation_radius)
         
         fig, ax = plt.subplots(1,1)
+        ax.set_title(f'Grid stars {len (gns2_g)}')
+        # hsg = ax.hist2d(gns2_g[col1], gns2_g[col2],bins = int(grid_s/3), norm = LogNorm(), cmap = 'gray')
+        hsg = ax.hist2d(gns2_g[col1], gns2_g[col2],bins = int(grid_s/5), cmap = 'gray')
+        ax.scatter(gns2_g[col1], gns2_g[col2],s =3,color = 'red', label = 'Grid stars')
+        ax.invert_xaxis()
+        ax.axis('equal')
+        fig.colorbar(hsg[3], ax = ax, label = 'Stars/bin')
+        # sys.exit(74)
        
-        ax.scatter(gns2_g[col2], gns2_g[col1],s =1, label = 'Grid stars')
-        # for xed in x_ed:
-        #     ax.axhline(xed, color = 'red', ls = 'dashed')
-        # for yed in range(len(y_ed)):
-        #     ax.axvline(y_ed[yed], color = 'red', ls = 'dashed', lw = 1)
-        # ax.legend(loc = 1)
         
         l2_xy = np.array([gns2_g[col1],gns2_g[col2]]).T
     else:
         l2_xy = np.array([gns_B[col1],gns_B[col2]]).T
+        
+   
     
     while deg < max_deg:
         loop += 1 
@@ -90,10 +106,15 @@ def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,use_grid,sig
     
         l1_com = gns_A[comp['ind_1']]
        
-        l2_com = gns_B[comp['ind_2']]
         
-        l2_clip = l2_com
-        l1_clip = l1_com
+        if grid_s is not None:
+            l2_com = gns2_g[comp['ind_2']]
+        else:
+            l2_com = gns_B[comp['ind_2']]
+        
+        
+        # l2_clip = l2_com
+        # l1_clip = l1_com
         
         diff_mag = l1_com['H'] - l2_com['H'] 
         # diff_mag1 = l1_com['IB230_diff'] - l2_com['IB230_diff'] 
@@ -105,7 +126,9 @@ def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,use_grid,sig
         l1_clip = l1_com[np.logical_not(mask_m.mask)]
         l2_clip = l2_com[np.logical_not(mask_m.mask)]
         
-       
+
+        
+        # sys.exit(126)
         
         
         if dm_plots == 'yes':

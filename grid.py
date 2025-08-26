@@ -2,8 +2,18 @@ import numpy as np
 from astropy.table import Table, vstack
 from astropy.coordinates import SkyCoord
 import astropy.units as u
+import sys
+# field_one = 10
+# field_two = 4
 
-def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolation_radius=0.5):
+# chip_one = 0
+# chip_two = 0
+
+# gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
+
+
+# def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolation_radius):
+def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolation_radius):
     """
     Selects isolated stars from an Astropy Table within specified magnitude limits and spatial isolation criteria.
 
@@ -34,9 +44,12 @@ def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolat
     # Step 1: Define the Grid Boundaries
     
     
-    x_min, x_max = table[x_col].min(), table[x_col].max()
-    y_min, y_max = table[y_col].min(), table[y_col].max()
+    x_min = np.nanmin(table[x_col])
+    x_max = np.nanmax(table[x_col])
+    y_min = np.nanmin(table[y_col])
+    y_max = np.nanmax(table[y_col])
 
+    
     # Step 2: Create the Grid
     x_edges = np.linspace(x_min, x_max, grid_size + 1)
     y_edges = np.linspace(y_min, y_max, grid_size + 1)
@@ -77,3 +90,65 @@ def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolat
     selected_stars_table = vstack(selected_stars) if selected_stars else Table(names=table.colnames)
 
     return selected_stars_table, x_edges, y_edges
+
+# gns2_g, xed, yed = grid_stars(gns2, 'x', 'y', 'H', 12, 15, 100, 0.5)
+
+# # %
+# import matplotlib.pyplot as plt
+# fig, ax = plt.subplots(1,1)
+# # ax.scatter(gns2['x'][::100], gns2['y'][::100], alpha = 0.1, s = 1)
+# ax.scatter(gns2_g['x'], gns2_g['y'], s = 1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

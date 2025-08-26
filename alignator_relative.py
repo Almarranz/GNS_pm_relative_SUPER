@@ -43,7 +43,7 @@ from grid import grid_stars
      aligned gns_A table
  """
 
-def alg_rel(gns_A, gns_B,col1, col2, align_by,use_grid,max_deg,d_m,grid_s = None, f_mode = None  ) :
+def alg_rel(gns_A, gns_B,col1, col2, align_by,use_grid,max_deg,d_m,grid_s, f_mode = None  ) :
     loop = 0
     deg = 1
     loop = 0
@@ -54,7 +54,7 @@ def alg_rel(gns_A, gns_B,col1, col2, align_by,use_grid,max_deg,d_m,grid_s = None
     dic_xy_final = {}
     if use_grid == 'yes':
         # def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size=50, isolation_radius=0.5):
-        gns2_g, x_ed, y_ed = grid_stars(gns_B,'xg','yg','H',12,16,grid_size=grid_s,isolation_radius=0.7)
+        gns2_g, x_ed, y_ed = grid_stars(gns_B, col1, col2,'H', 12, 16, grid_size=grid_s, isolation_radius=0.7)
         
         fig, ax = plt.subplots(1,1)
        

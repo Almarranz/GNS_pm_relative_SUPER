@@ -5,6 +5,8 @@ Created on Fri Nov  8 12:42:20 2024
 
 @author: amartinez
 """
+import sys
+sys.path.append("/Users/amartinez/Desktop/pythons_imports/")
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -78,17 +80,17 @@ plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib 
 # chip_two = chip_two.astype(int)
 
 # sys.exit(75)
-field_one = 'B1'
-field_two = 20
+# field_one = 'B1'
+# field_two = 20
 # 
-# field_one = 10
-# field_two = 4
+field_one = 16
+field_two = 7
 
 chip_one = 0
 chip_two = 0
 
 
-if field_one == 7 or field_one == 12 or field_one == 10 or field_one == 16:
+if field_one == 7 or field_one == 12 or field_one == 10 or field_one == 16 :
     t1 = Time(['2015-06-07T00:00:00'],scale='utc')
 elif field_one == 'B6':
     t1 = Time(['2016-06-13T00:00:00'],scale='utc')
@@ -131,33 +133,34 @@ center_only = 'no'
 # =============================================================================
 # QUALITY CUTS
 # =============================================================================
-gns_mags = [12.5, 18.5]#!!! GNS mag limtis
-max_sig = 0.02# arcsec Max uncertainty position (l,b)
+gns_mags = [12, 19]#!!! GNS mag limtis
+max_sig = 0.05# arcsec Max uncertainty position (l,b)
+# max_sig = 0.02# arcsec Max uncertainty position (l,b)
 bin_width = 0.1
-perc_H = 95
-perc_lb = 95
+perc_H = 100
+perc_lb =100
 # =============================================================================
 # GRID PARAMS
 # =============================================================================
-# grid_s = None
-grid_s = 100
+grid_s = None
+# grid_s = 100
 grid_Hmin = 12.5
-grid_Hmax = 17.5
-isolation_radius = 0.5#arcsec isolation of the grid stars 
+grid_Hmax = 18
+isolation_radius = 0.7#arcsec isolation of the grid stars 
 
 # =============================================================================
 # ALIGNMENT PARAMS
 # =============================================================================
 max_loop = 3
 mag_lim_alig = None# H Limits of the algnment stars
-# mag_lim_alig = [12, 18]# H Limits of the algnment stars
-max_sep = 20*u.mas#, firts match gns1 to gns2 for astroaling
+# mag_lim_alig = [13, 18 ]# H Limits of the algnment stars
+max_sep = 30*u.mas#, firts match gns1 to gns2 for astroaling
 sig_cl = 3#!!!
-max_deg =4 # Maximun degree of the alignment ()
+max_deg =3 # Maximun degree of the alignment minus one()
 centered_in = 2
 d_m = 50*u.mas#!!! max  distance  for the fine alignment betwenn GNS1 and 2
-destination = 2 #!!! GNS2 is reference
-# destination = 1 #!!! GNS1 is reference
+# destination = 2 #!!! GNS2 is reference
+destination = 1 #!!! GNS1 is reference
 align_by = 'Polywarp'#!!!
 # align_by = '2DPoly'#!!!
 f_mode = 'W' # f_mode only useful for 2Dpoly
@@ -168,8 +171,8 @@ f_mode = 'W' # f_mode only useful for 2Dpoly
 # =============================================================================
 # PMs PARAMS
 # =============================================================================
-d_m_pm = 0.15#!!! in arcs, max distance for the proper motions
-e_pm_gns = 1#!!!error cut in proper motions
+d_m_pm = 0.150#!!! in arcs, max distance for the proper motions
+e_pm_gns =2#!!!error cut in proper motions
 
 
 look_for_cluster = 'yes'
@@ -187,10 +190,14 @@ GNS_2='/Users/amartinez/Desktop/PhD/HAWK/GNS_2/lists/%s/chip%s/'%(field_two, chi
 pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_SUPER/pruebas/'
 pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_SUPER/pruebas/'
 
+# 
+if chip_one == 0:
+    gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
+    # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}_old/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
+    # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_H_chips_opti_rebf1.ecsv',  format = 'ascii.ecsv')
 
-# gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
-gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_H_chips_opti_rebf1.ecsv',  format = 'ascii.ecsv')
-
+else:
+    gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
 
 
 gns1 = filter_gns_by_percentile(gns1, mag_col='H', err_col='dH', sl_col='sl', sb_col='sb', bin_width=bin_width, percentile_H=perc_H, percentile_lb=perc_lb, mag_lim = None, pos_lim = None)
@@ -236,8 +243,9 @@ gns1 = filter_gns_by_percentile(gns1, mag_col='H', err_col='dH', sl_col='sl', sb
 
 
 
-# gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
-gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti_rebf1.ecsv', format = 'ascii.ecsv')
+gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
+# gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}_old/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
+# gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti_rebf1.ecsv', format = 'ascii.ecsv')
 
 
 
@@ -247,9 +255,11 @@ gns1 = gns1[buenos1]
 
 # %%
 # fig, ax = plt.subplots()
+# br = gns1['H']<13
 # ax.set_title('Density plot')
 # # ax.scatter(gns2_mpm['l'], gns2_mpm['b'], s= 1)
-# hst = ax.hist2d(gns1['l'], gns1['b'], bins = 100)
+# # hst = ax.hist2d(gns1['l'], gns1['b'], bins = 100)
+# hst = ax.hist2d(gns1['l'][br], gns1['b'][br], bins = 20)
 # fig.colorbar(hst[3], ax = ax)
 # ax.invert_xaxis()
 # sys.exit(249)
@@ -286,7 +296,8 @@ ax.set_ylabel('($\sigma l + + \sigma b$)/2 [arcsec]')
 ax.set_xlabel('[H]')
 fig.tight_layout()
     
-    
+# %%
+
 
 buenos2 = (gns2['l']>min(gns1['l'])) & (gns2['l']<max(gns1['l'])) & (gns2['b']>min(gns1['b'])) & (gns2['b']<max(gns1['b']))
 
@@ -322,37 +333,83 @@ ax2_2.grid()
 all_2 = len(gns2)
 
 gns1 = filter_gns_data(gns1, max_e_pos = max_sig, max_mag = gns_mags[0], min_mag = gns_mags[1] )
+gns2 = filter_gns_data(gns2, max_e_pos = max_sig, max_mag = gns_mags[0], min_mag = gns_mags[1] )
 
 # %%
 
 # Plot for article
-# =============================================================================
-# fig, (ax,ax2) = plt.subplots(1,2, figsize = (15,7.5))
-# hist = ax.hist2d(gns1['H'],(gns1['sl'] +gns1['sl'])/2,  bins = 100,norm = LogNorm())
-# fig.colorbar(hist[3], ax =ax)
-# # ax.set_ylabel('($\sigma l + \sigma b$)/2 [arcsec]')
+fig, (ax,ax2) = plt.subplots(1,2, figsize = (15,7.5))
+hist = ax.hist2d(gns1['H'],1000*(gns1['sl'] +gns1['sl'])/2,  bins = 100,norm = LogNorm())
+fig.colorbar(hist[3], ax =ax, aspect = 30)
+# ax.set_ylabel('($\sigma l + \sigma b$)/2 [arcsec]')
 # ax.set_ylabel('$\overline{\sigma}_{(l,b)}$ [arcsec]')
-# ax.set_xlabel('[H]')
-# ax.set_ylim(0.001,0.07)
-# hist2 = ax2.hist2d(gns2['H'],(gns2['sl'] +gns2['sl'])/2,  bins = 200,norm = LogNorm(), cmap = 'inferno')
-# fig.colorbar(hist2[3], ax =ax2, label = 'stars/bin')
-# # ax.set_ylabel('($\sigma l + \sigma b$)/2 [arcsec]')
-# ax2.set_xlabel('[H]')
-# ax2.set_ylim(0.001,0.07)
-# ax2.set_xlim(12,23)
-# ax.set_xlim(12,23)
-# fig.tight_layout()
-# 
+ax.set_ylabel('$\overline{\sigma}_{(l,b)}$ [mas]')
+ax.set_xlabel('[H]')
+ax.set_ylim(0.001*1000,0.1*1000)
+hist2 = ax2.hist2d(gns2['H'],1000*(gns2['sl'] +gns2['sl'])/2,  bins = 200,norm = LogNorm(), cmap = 'inferno')
+fig.colorbar(hist2[3], ax =ax2, label = 'stars/bin', aspect = 30)
+# ax.set_ylabel('($\sigma l + \sigma b$)/2 [arcsec]')
+ax2.set_xlabel('[H]')
+ax2.set_ylim(0.001*1000,0.1*1000)
+ax2.set_xlim(10,23)
+ax.set_xlim(10,23)
+ax.set_xticks(np.arange(int(min(gns1['H'])),max(gns1['H']),1 ))
+fig.tight_layout()
+
 # meta = {'Script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/SUPER_alignment.py'}
 # plt.savefig('/Users/amartinez/Desktop/PhD/My_papers/GNS_pm_catalog/images/GNS1-2_vs_sigmalb.png', bbox_inches='tight', dpi = 150, transparent = True, metadata = meta)
+
+# %%
+# br = gns2['H']<14
+# fig,ax = plt.subplots(1,1)
+# ax.set_title('Density plot')
+# # ax.scatter(gns2_mpm['l'], gns2_mpm['b'], s= 1)
+# # hst = ax.hist2d(gns1['l'], gns1['b'], bins = 100)
+# hst = ax.hist2d(gns2['l'][br], gns2['b'][br], bins = 20, cmap = 'inferno')
+# fig.colorbar(hst[3], ax = ax)
+# ax.invert_xaxis()
+# sys.exit(249)
+# %%
+
+
+
+# =============================================================================
+# # %
+# def perX(arr):
+#     return np.percentile(arr, 10)
+# mask_kn = (gns1['H'] > 12) & (gns1['H'] < 20)
+# gns1_kn = gns1['H'][mask_kn]
+# sig_m1 = (gns1['sl'][mask_kn]*1000 +gns1['sb'][mask_kn]*1000)/2
+# sig_b,b_edg, bin_n = binned_statistic(gns1_kn,sig_m1,statistic = perX, bins = 150)
+# # sig_b,b_edg, bin_n = binned_statistic(gns1_kn,sig_m1,statistic = 'median', bins = 300)
+# 
+# x_c = (b_edg[1:] + b_edg[:-1])/2   
+# ax.scatter(x_c, sig_b, color = 'r', s = 1)
+# 
+# kl = KneeLocator(x_c, sig_b, curve="convex", direction="increasing")
+# print("Knee at:", kl.knee)
 # 
 # 
-# sys.exit(279)
+# mask_kn2 = (gns2['H'] > 12) & (gns2['H'] < 22)
+# gns2_kn = gns2['H'][mask_kn2]
+# sig_m2 = (gns2['sl'][mask_kn2]*1000 +gns2['sb'][mask_kn2]*1000)/2
+# sig_b,b_edg, bin_n = binned_statistic(gns2_kn,sig_m2,statistic = perX, bins = 150)
+# # sig_b,b_edg, bin_n = binned_statistic(gns1['H'],sig_m1,statistic = 'std', bins = 200)
+# 
+# x_c = (b_edg[1:] + b_edg[:-1])/2   
+# ax2.scatter(x_c, sig_b, color = 'cyan', s = 10)
+# 
+# kl = KneeLocator(x_c, sig_b, curve="convex", direction="increasing")
+# print("Knee at:", kl.knee)
+# 
+# # sys.exit(361)
+# # x_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
 # =============================================================================
 # %%
 
 
-gns2 = filter_gns_data(gns2, max_e_pos = max_sig, max_mag = gns_mags[0], min_mag = gns_mags[1] )
+
+
 
 
 ax2.set_title(f'Clipped {100 - 100*len(gns1)/all_1:.1f}%')
@@ -772,20 +829,28 @@ ax.invert_xaxis()
 # ax.invert_xaxis()
 ax.legend( fontsize = 15)
 ax2.legend(fontsize = 15)
+# %%
+fig, ax = plt.subplots(figsize = (10,10))
+mean_elb = (gns2_mi['dpm_x'] + gns2_mi['dpm_y'])/2
+hpm = ax.hist2d(gns2_mi['H'], mean_elb, norm = LogNorm(), bins = (80))
 
+fig.colorbar(hpm[3], ax = ax, label = 'stars/bin', aspect = 40)
+ax.set_xlabel('[H]')
+ax.set_ylabel('$\overline{\mu}_{(l,b)}$ [mas/yr]')
 
 # sys.exit(712)
 # %% Gaia Comparation#!!!
-max_sep_ga = 80*u.mas# separation for comparison with gaia
-e_pm = 0.5#!!! Maximun error in pm for Gaia stars
+max_sep_ga = 100*u.mas# separation for comparison with gaia
+e_pm = 2#!!! Maximun error in pm for Gaia stars
 gaia_mags = [13,20]#!!! Gaia mag limtis for comparison with GNS
 # %
 # Before comparing witg Gaia we mask the best pms
 
 
 
-extra_mag_cut = [12,19]
-extra_epm = 0.5
+extra_mag_cut = [12,22]
+extra_epm = e_pm_gns
+# extra_epm = 0.5
 gns1_mpm = filter_gns_data(gns1_m, max_e_pm = extra_epm, min_mag = extra_mag_cut[1], max_mag = extra_mag_cut[0])
 gns2_mpm = filter_gns_data(gns2_m, max_e_pm = extra_epm,  min_mag = extra_mag_cut[1], max_mag = extra_mag_cut[0])
 
@@ -797,7 +862,7 @@ center_g = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degr
 
 try:
     
-    gaia = Table.read(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value))
+    gaia = Table.read(pruebas1  + 'NOO_gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value))
     print('Gaia from table')
 except:
     print('Gaia from web')
@@ -807,7 +872,7 @@ except:
     Gaia.ROW_LIMIT = -1  # it not especifty, Default rows are limited to 50. 
     j = Gaia.cone_search_async(center, radius = abs(radius))
     gaia = j.get_results()
-    gaia.write(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value))
+    gaia.write(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value),overwrite = True)
 
 
 gaia.sort('phot_g_mean_mag')
@@ -830,91 +895,65 @@ sort_idx = np.argsort(x)
 x_sorted = x[sort_idx]
 y_sorted = y[sort_idx]
 
-num_bins = 100
-def bin_percentile(x, y, bins, q=10):
-    percentiles, bin_edges, _ = binned_statistic(
-        x, y, statistic=lambda arr: np.percentile(arr, q), bins=bins
-    )
-    return percentiles, bin_edges
+num_bins = 500
+
 for i,column in enumerate((gaia['pmra_error'],gaia['pmdec_error'])):
+    
+    x = np.array(gaia['phot_g_mean_mag'])
+    y = np.array(column)
+    zero_mask = (y >0) & (x>12) 
+    x = x[zero_mask]
+    y = y[zero_mask]
+    
     # y_min, bin_edges, _ = binned_statistic(gaia['phot_g_mean_mag'], column, statistic='median', bins=num_bins)
     
     # x_bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
    
+    def perc10(arr):
+        return np.percentile(arr, 10)
+    y_env, bin_edges, _ = binned_statistic(x,y, statistic=perc10, bins=num_bins)
+    x_env = 0.5 * (bin_edges[1:] + bin_edges[:-1])
 
-    y_min, bin_edges = bin_percentile(gaia['phot_g_mean_mag'], column, bins=num_bins, q=85)
-    x_bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+    # Remove NaNs
+    mask = ~np.isnan(y_env)
+    x_env, y_env = x_env[mask], y_env[mask]
 
-    mask = (y_min >0) & (x_bin_centers > 12)
-    x_bin_centers = x_bin_centers[mask]
-    y_min = y_min[mask]
-     
-    kl = KneeLocator(x_bin_centers, y_min, curve="convex", direction="increasing")
+
+    mask = (y_env >0) & (x_env > 12)
+    x_env = x_env[mask]
+    y_env = y_env[mask]
+    
+    def power(x, a, b, c):
+        return a * (x**b) + c
+
+    # --- Fit power law ---
+    popt_pow, _ = curve_fit(power, x_env, y_env, maxfev=10000)
+    # popt_pow, _ = curve_fit(power, x_env, y_env, p0=(1e-5, 2, 1e-5), maxfev=10000)
+
+    xx = np.linspace(min(x_env), max(x_env), num_bins)
+    
+    kl = KneeLocator(xx, power(xx, *popt_pow), curve="convex", direction="increasing")
     print("Knee at:", kl.knee)
-    y_kn = y_min[x_bin_centers == kl.knee]
+    y_kn = power(xx, *popt_pow)[xx == kl.knee]
     # gax.axvline(kl.knee,ls = 'dashed')
     # gax.axhline(y_kn,ls = 'dashed')
 # gax.scatter(gaia['phot_g_mean_mag'],gaia['pmra_error'])
     if i == 0:
         gax.axvline(kl.knee,ls = 'dashed', label = f'$l_k$  {kl.knee:.1f}, {y_kn[0]:.1f}')
         gax.axhline(y_kn,ls = 'dashed')
-        gax.scatter(x_bin_centers, y_min, color="red") 
+        gax.plot(xx, power(xx, *popt_pow))
+        # gax.scatter(x, y, s=5, alpha=0.2)
+        # gax.scatter(x_, y_min, color="red") 
     
     if i == 1:
         gax.axvline(kl.knee,ls = 'dashed', label = f'$l_b$  {kl.knee:.1f}, {y_kn[0]:.1f}')
         gax.axhline(y_kn,ls = 'dashed')
-        gax.scatter(x_bin_centers, y_min, color="red",marker ='x') 
+        gax.plot(xx, power(xx, *popt_pow))
+        # gax.scatter(x, y, s=5, alpha=0.2)
+        # gax.scatter(x_bin_centers, y_min, color="red",marker ='x') 
+    gax.set_xticks(np.arange(min(np.floor(x-2)), max(x+1)))
     gax.legend()
-# %%
-x = np.array(gaia['phot_g_mean_mag'])
-y = np.array(gaia['pmra_error'])
-zero_mask = (y >0) & (x>12) 
-x = x[zero_mask]
-y = y[zero_mask]
-num_bins = 200
-def perc10(arr):
-    return np.percentile(arr, 10)
-
-y_env, bin_edges, _ = binned_statistic(x, y, statistic=perc10, bins=num_bins)
-x_env = 0.5 * (bin_edges[1:] + bin_edges[:-1])
-
-# Remove NaNs
-mask = ~np.isnan(y_env)
-x_env, y_env = x_env[mask], y_env[mask]
-
-# --- Candidate functions ---
-def expo(x, a, b, c):
-    return a * np.exp(b * x) + c
-
-def power(x, a, b, c):
-    return a * (x**b) + c
-
-# --- Fit exponential ---
-# popt_exp, _ = curve_fit(expo, x_env, y_env, p0=(1e-5, 0.1, 1e-5), maxfev=10000)
-popt_exp, _ = curve_fit(expo, x_env, y_env, maxfev=10000)
-
-# --- Fit power law ---
-popt_pow, _ = curve_fit(power, x_env, y_env, maxfev=10000)
-# popt_pow, _ = curve_fit(power, x_env, y_env, p0=(1e-5, 2, 1e-5), maxfev=10000)
-
-plt.figure(figsize=(8,6))
-plt.scatter(x, y, s=5, alpha=0.2, label="Gaia data")
-plt.plot(x_env, y_env, 'ro', label="10th percentile (envelope)")
-
-xx = np.linspace(min(x_env), max(x_env), 200)
-plt.plot(xx, expo(xx, *popt_exp), 'b-', lw=2, label="Exponential fit")
-plt.plot(xx, power(xx, *popt_pow), 'g--', lw=2, label="Power-law fit")
-
-
-kl = KneeLocator(xx, power(xx, *popt_pow), curve="convex", direction="increasing")
-print("Knee at:", kl.knee)
-# plt.xlabel("phot_g_mean_mag")
-# plt.ylabel("pmra_error [mas/yr]")
-# plt.legend()
-# plt.yscale("log")   # optional, helps visualize error scaling
-# plt.show()
-# %%
-
+# %
 
 # Step 1: Gaia proper motion as SkyCoord
 c_gaia = SkyCoord(ra=gaia['ra'], dec=gaia['dec'],
@@ -1168,7 +1207,9 @@ e_dpmy_m = e_dpmy_m[m_lb]
 
 
 gns2_mpm['pm_x'] -= np.mean(d_pmx_ga_m.value)
-gns2_mpm['pm_y'] -= np.mean(d_pmy_ga_m.value)
+gns2_mpm['pm_x'] -= np.mean(d_pmx_ga_m.value)
+gns1_mpm['pm_x'] -= np.mean(d_pmx_ga_m.value)
+gns1_mpm['pm_y'] -= np.mean(d_pmy_ga_m.value)
  
 # %
 
@@ -1230,7 +1271,7 @@ ax2.legend()
 # hst = ax.hist2d(gns2_mpm['l'], gns2_mpm['b'], bins = 50)
 # fig.colorbar(hst[3], ax = ax)
 # ax.invert_xaxis()
-sys.exit(1115)
+# sys.exit(1115)
 # %%
 
 
@@ -1239,7 +1280,7 @@ if look_for_cluster == 'yes':
    
     # modes = ['pm_xy_color']
     modes = ['pm_xy']
-    knn = 35
+    knn = 15
     gen_sim = 'kernnel'
     sim_lim ='minimun'
     # sim_lim ='mean'
@@ -1256,9 +1297,9 @@ if look_for_cluster == 'yes':
                                      gns1_mpm['l'].value, gns1_mpm['b'].value,
                                      modes[0],
                                      gns1_mpm['H'],gns1_mpm['H'],
-                                     knn,gen_sim,sim_lim, save_reg_folder = pruebas1)
+                                     knn,gen_sim,sim_lim, save_reg = pruebas1)
 
-sys.exit(1098)
+sys.exit(1278)
 # %%
 
 

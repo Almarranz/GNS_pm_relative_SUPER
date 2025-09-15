@@ -78,11 +78,11 @@ plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib 
 # field_one = 'B1'
 # field_two = 20
 
-field_one = 10 #GNS1
-field_two = 4 #GNS2
+field_one = 16 #GNS1
+field_two = 7 #GNS2
 
 chipA = 2 #GNS1
-chipB = 4 #GNS2
+chipB = 1 #GNS2
 
 
 
@@ -129,8 +129,8 @@ center_only = 'no'
 # =============================================================================
 # QUALITY CUTS
 # =============================================================================
-gns_mags = [12, 18]#!!! GNS mag limtis
-max_sig = 0.3# arcsec Max uncertainty position (l,b)
+gns_mags = [10, 18]#!!! GNS mag limtis
+max_sig = 0.05# arcsec Max uncertainty position (l,b)
 bin_width = 0.1
 perc_H = 100
 perc_lb = 100
@@ -149,11 +149,11 @@ isolation_radius = 1#arcsec isolation of the grid stars
 max_loop = 3
 mag_lim_alig = None# H Limits of the algnment stars
 # mag_lim_alig = [12, 14]# H Limits of the algnment stars
-max_sep = 50* u.mas# firts match gns1 to gns2 for astroaling
+max_sep = 30* u.mas# firts match gns1 to gns2 for astroaling
 sig_cl = 3#!!!
-max_deg =4
+max_deg =3
 centered_in = 2
-d_m = 50*u.mas#!!!max distance  for the fine alignment betwenn GNS1 and 2
+d_m = 30*u.mas#!!!max distance  for the fine alignment betwenn GNS1 and 2
 destination = 2 #!!! GNS2 is reference
 # destination = 1 #!!! GNS1 is reference
 align_by = 'Polywarp'#!!!
@@ -167,7 +167,7 @@ f_mode = 'W' # f_mode only useful for 2Dpoly
 # PMs PARAMS
 # =============================================================================
 d_m_pm = 0.15#!!! in arcs, max distance for the proper motions
-e_pm_gns = 1#!!!error cut in proper motions
+e_pm_gns = 2#!!!error cut in proper motions
 
 
 look_for_cluster = 'yes'
@@ -185,19 +185,18 @@ pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_SUPER/pruebas/'
 pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_SUPER/pruebas/'
 
 
-# gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
+# gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}_old/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
 
 
 gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/stars_chip{chipA}_opti.txt',  format = 'ascii')
 gns1.rename_column('sm','dH')
+gns1.rename_column('m','H')
 gns1['sl'].unit = u.arcsec
 gns1['sb'].unit = u.arcsec
 gns1['l'].unit = u.deg
 gns1['b'].unit = u.deg
 
-bin_width = 0.1
-perc_H = 85
-perc_lb = 85
+
 gns1 = filter_gns_by_percentile(gns1, mag_col='H', err_col='dH', sl_col='sl', sb_col='sb', bin_width=bin_width, percentile_H=perc_H, percentile_lb=perc_lb, mag_lim = None, pos_lim = None)
 
 
@@ -241,11 +240,12 @@ gns1 = filter_gns_by_percentile(gns1, mag_col='H', err_col='dH', sl_col='sl', sb
 
 
 
-# gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
+# gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}_old/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
 
 
 gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/stars_chip{chipB}_opti.txt', format = 'ascii')
 gns2.rename_column('sm','dH')
+gns2.rename_column('m','H')
 gns2['sl'].unit = u.arcsec
 gns2['sb'].unit = u.arcsec
 gns2['l'].unit = u.deg
@@ -753,8 +753,8 @@ ax2.legend(fontsize = 15)
 # sys.exit(712)
 # %% Gaia Comparation#!!!
 max_sep_ga = 50*u.mas# separation for comparison with gaia
-e_pm = 0.5#!!! Maximun error in pm for Gaia stars
-gaia_mags = [12,20]#!!! Gaia mag limtis for comparison with GNS
+e_pm = 0.3#!!! Maximun error in pm for Gaia stars
+gaia_mags = [12,19]#!!! Gaia mag limtis for comparison with GNS
 # %
 # Before comparing witg Gaia we mask the best pms
 
@@ -1101,10 +1101,10 @@ if look_for_cluster == 'yes':
    
     # modes = ['pm_xy_color']
     modes = ['pm_xy']
-    knn = 30
+    knn = 15
     gen_sim = 'kernnel'
-    # sim_lim ='minimun'
-    sim_lim ='mean'
+    sim_lim ='minimun'
+    # sim_lim ='mean'
     if destination == 2:
         clus_dic = gns_cluster_finder.finder(gns2_mpm['pm_x'], gns2_mpm['pm_y'],
                                      gns2_mpm['xp'], gns2_mpm['yp'], 

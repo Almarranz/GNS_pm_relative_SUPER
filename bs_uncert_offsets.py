@@ -48,8 +48,10 @@ rc('font',**{'family':'serif','serif':['Palatino']})
 plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib pop up because so many plots, this turining it of
 # %%
 
-field_one = 'B1'
-field_two = 20
+# field_one = 'B1'
+# field_two = 20
+field_one = 16
+field_two = 7
 survey = 1#TODO ONLY for Gaia. Can be 1 or 2
 
 
@@ -68,15 +70,15 @@ for degree in range(degree,degree+1):
                    # /Users/amartinez/Desktop/PhD/HAWK/GNS_1relative/lists/7/uncert_lists/chip4/BS_lists_degre1/
     boot_folder = f'/Users/amartinez/Desktop/PhD/HAWK/GNS_{survey}relative_SUPER/bootstrapping/'
    
-    it=len(glob.glob(boot_folder+f'BS*_gns1_pmSuper_F1_{field_one}_F2_{field_two}.ecsv')) 
+    it=len(glob.glob(boot_folder+f'BS*_gns{survey}_pmSuper_F1_{field_one}_F2_{field_two}.ecsv')) 
     print(it)
    
     line =[]
     
     for i in range(1,it+1):
-    # for i in range(1,500):   
+    # for i in range(1,150):   
         # xi, yi,RaH1,DecH1, ID
-        f = Table.read(boot_folder +f'BS{i}_gns1_pmSuper_F1_{field_one}_F2_{field_two}.ecsv')
+        f = Table.read(boot_folder +f'BS{i}_gns{survey}_pmSuper_F1_{field_one}_F2_{field_two}.ecsv')
                       
         
         line.append(f)
@@ -145,13 +147,15 @@ for degree in range(degree,degree+1):
     
    
     fig, ax = plt.subplots(1,1,figsize = (10,10))
-    num_bins = (50,25)
+    num_bins = (20,24)
     statistic, x_edges, y_edges, binnumber = binned_statistic_2d(uncer_pos[:,4],uncer_pos[:,5],
                                                                  (uncer_pos[:,2]) + (uncer_pos[:,3])/2 , 
                                                                  statistic='mean', bins=(num_bins))
     X, Y = np.meshgrid(x_edges, y_edges)
     # im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',norm=colors.LogNorm())
-    im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r')
+    im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r' )
+    # im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',vmin = 0.5, vmax = 3.5 )
+    # im = ax.pcolormesh(X, Y, statistic.T, cmap='Set1_r',vmin = 0.5, vmax = 2 )
     
     # ax.set_title('alignment uncertainty')
     # im = ax.hist2d(uncer_pos[:,4],uncer_pos[:,5], c=np.sqrt((uncer_pos[:,2])**2+(uncer_pos[:,3])**2),
@@ -163,18 +167,19 @@ for degree in range(degree,degree+1):
     ax.invert_xaxis()
 
     
-    cbar = fig.colorbar(im, label = '$\overline{\sigma}_{(l,b)}$ [mas]', fraction = 0.0218 )
+    cbar = fig.colorbar(im, label = '$\overline{\sigma}_{(l,b)}$ [mas]', aspect = 30, pad = -0.1)
+    # cbar = fig.colorbar(im, aspect = 30, pad = -0.1)
     # cbar.ax.set_yticklabels([])
     # cbar.ax.set_yticklabels([0.5,'',1, 2])
     cbar.ax.tick_params(size=8,width=1,direction='out')
     
     # cbar.ax.set_yticklabels([0.5,1, 2])
     ax.axis('scaled')
-    fig.tight_layout()
+    # fig.tight_layout()
     
     meta = {'scrip':'/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/bs_uncert_offsets.py'}
     article = '/Users/amartinez/Desktop/PhD/My_papers/GNS_pm_catalog/images/'
-    plt.savefig(article + 'alig_error.png', bbox_inches='tight', transparent = 'True', dpi = 150, metadata = meta)
+    plt.savefig(article + 'arches_alig_error.png', bbox_inches='tight', transparent = 'True', dpi = 150, metadata = meta)
     plt.show()
 # statistic, x_edges, y_edges, binnumber = binned_statistic_2d(x, y, vx*-1, statistic='median', bins=(num_bins))
 # # statistic, x_edges, y_edges, binnumber = binned_statistic_2d(x_, y_, vx_, statistic='median', bins=(num_bins))
@@ -182,7 +187,7 @@ for degree in range(degree,degree+1):
 
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     fig, (ax,ax2) = plt.subplots(1,2,figsize = (20,10))
-    num_bins = 49
+    num_bins = 25
     statistic, x_edges, y_edges, binnumber = binned_statistic_2d(uncer_pos[:,4],uncer_pos[:,5],
                                                                  (uncer_pos[:,2]) , 
                                                                  statistic='mean', bins=(num_bins))
@@ -191,7 +196,7 @@ for degree in range(degree,degree+1):
     cax = new_ax.append_axes("right", size = '5%', pad = 0.05)
     X, Y = np.meshgrid(x_edges, y_edges)
     # im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',norm=colors.LogNorm())
-    im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r')
+    im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',vmin = 0, vmax = 6 )
     
     ax.set_title('$\delta l$')
     # im = ax.hist2d(uncer_pos[:,4],uncer_pos[:,5], c=np.sqrt((uncer_pos[:,2])**2+(uncer_pos[:,3])**2),
@@ -233,7 +238,7 @@ for degree in range(degree,degree+1):
 # %%
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     fig, ax = plt.subplots(1,1,figsize = (10,10))
-    num_bins = 49
+    num_bins = 40,20
     statistic, x_edges, y_edges, binnumber = binned_statistic_2d(uncer_pos[:,4],uncer_pos[:,5],
                                                                  (uncer_pos[:,2]) , 
                                                                  statistic='mean', bins=(num_bins))
@@ -242,7 +247,9 @@ for degree in range(degree,degree+1):
     cax = new_ax.append_axes("right", size = '5%', pad = 0.05)
     X, Y = np.meshgrid(x_edges, y_edges)
     # im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',norm=colors.LogNorm())
-    im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r')
+    # im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',norm=colors.SymLogNorm(linthresh= 1, linscale=1, vmin=0, vmax=2))
+    im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r' )
+    # im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',vmin = 0, vmax = 3 )
     
     ax.set_title('$\delta l$')
     # im = ax.hist2d(uncer_pos[:,4],uncer_pos[:,5], c=np.sqrt((uncer_pos[:,2])**2+(uncer_pos[:,3])**2),

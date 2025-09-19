@@ -60,6 +60,7 @@ def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,sig_cl_H, gr
         fig, ax = plt.subplots(1,1)
         ax.set_title(f'Ref. Mag selected stars H =[{mag_lim_alig[0]},{mag_lim_alig[1]}]')
         ax.scatter(gns_B['x'], gns_B['y'],s =1, label = f'Ref. stars {len(gns_B)}')
+        ax.axis('equal')
         # ax.hist2d(l2_clip['x'], l2_clip['y'],bins = 100, norm = LogNorm())
  
    

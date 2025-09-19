@@ -13,7 +13,14 @@ Created on Fri Nov  8 12:42:20 2024
 #         
 #         cat loops_ls.txt | parallel -j 10 "python bs_SUPER_alignment.py {}"
 # 
+# In order to generate the lits
+#    
+#    seq 1 500 > loops_ls.txt
 # =============================================================================
+
+import sys
+sys.path.append("/Users/amartinez/Desktop/pythons_imports/")
+
 import numpy as np
 import matplotlib.pyplot as plt
 from compare_lists import compare_lists 
@@ -81,11 +88,18 @@ plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib 
 
 # sys.exit(75)
 field_one = 'B1'
-chip_one = 0
 field_two = 20
+# field_one = 16
+# field_two = 7
+
+chip_one = 0
 chip_two = 0
-bs_loop = sys.argv[1]
-# bs_loop = 1
+# field_one = 16
+# chip_one = 0
+# field_two = 7
+# chip_two = 0
+# bs_loop = sys.argv[1]
+bs_loop = 1
 if field_one == 7 or field_one == 12 or field_one == 10 or field_one == 16:
     t1 = Time(['2015-06-07T00:00:00'],scale='utc')
 elif field_one == 'B6':
@@ -125,30 +139,85 @@ center_only = 'no'
 # pix_scale = 0.1064
 # max_sig = 0.3#TODO
 
+# =============================================================================
+# VARIABLES
+# =============================================================================
+# center_only = 'yes'#TODO yes, eliminates foregroud, no, keep them
+center_only = 'no'
+# pix_scale = 0.1064*0.5
+# pix_scale = 0.1064
+# max_sig = 0.3#TODO
 
+
+# =============================================================================
+# QUALITY CUTS
+# =============================================================================
+gns_mags = [12, 20]#!!! GNS mag limtis
+max_sig = 0.5# arcsec Max uncertainty position (l,b)
+# max_sig = 0.02# arcsec Max uncertainty position (l,b)
+bin_width = 0.1
+perc_H = 100
+perc_lb =100
+# =============================================================================
+# GRID PARAMS
+# =============================================================================
+# grid_s = None
+grid_s = 300
+grid_Hmin = 12.5
+grid_Hmax = 18
+isolation_radius = 0.7#arcsec isolation of the grid stars 
+
+# =============================================================================
+# ALIGNMENT PARAMS
+# =============================================================================
 max_loop = 3
-gns_mags = [12,18]#!!! GNS mag limtis
-max_sig = 0.1
-e_pm_gns = 3#!!!error cut in proper motions
-# max_sig = 0.05
-# use_grid = 'yes'
-use_grid = 'no'
-grid_s = 700
-# use_grid = 'no'
-max_sep = 50* u.mas# firts match gns1 to gns2 for astroaling
+# mag_lim_alig = None# H Limits of the algnment stars
+mag_lim_alig = [12, 18]# H Limits of the algnment stars
+max_sep = 50*u.mas#, firts match gns1 to gns2 for astroaling
 sig_cl = 3#!!!
-max_deg =4
-
-d_m = 30*u.mas#!!!in arcse, max distance  for the fine alignment betwenn GNS1 and 2
-d_m_pm = 150#!!! in arcs, max distance for the proper motions
+max_deg =3 # Maximun degree of the alignment minus one()
+centered_in = 1
+d_m = 50*u.mas#!!! max  distance  for the fine alignment betwenn GNS1 and 2
+# destination = 1 #!!! GNS2 is reference
 destination = 2 #!!! GNS1 is reference
-# destination = 2 #!!! GNS2 is reference
 align_by = 'Polywarp'#!!!
 # align_by = '2DPoly'#!!!
 f_mode = 'W' # f_mode only useful for 2Dpoly
 # f_mode = 'WnC'
 # f_mode = 'NW'
 # f_mode = 'NWnC'
+
+# =============================================================================
+# PMs PARAMS
+# =============================================================================
+d_m_pm = 0.150#!!! in arcs, max distance for the proper motions
+e_pm_gns =1#!!!error cut in proper motions
+
+
+
+# max_loop = 3
+# gns_mags = [12,18]#!!! GNS mag limtis
+# max_sig = 0.1
+# e_pm_gns = 3#!!!error cut in proper motions
+# # max_sig = 0.05
+# # use_grid = 'yes'
+# use_grid = 'no'
+# grid_s = 700
+# # use_grid = 'no'
+# max_sep = 50* u.mas# firts match gns1 to gns2 for astroaling
+# sig_cl = 3#!!!
+# max_deg =4
+
+# d_m = 30*u.mas#!!!in arcse, max distance  for the fine alignment betwenn GNS1 and 2
+# d_m_pm = 150#!!! in arcs, max distance for the proper motions
+# destination = 2 #!!! GNS1 is reference
+# # destination = 2 #!!! GNS2 is reference
+# align_by = 'Polywarp'#!!!
+# # align_by = '2DPoly'#!!!
+# f_mode = 'W' # f_mode only useful for 2Dpoly
+# # f_mode = 'WnC'
+# # f_mode = 'NW'
+# # f_mode = 'NWnC'
 
 
 
@@ -465,6 +534,8 @@ if destination == 2:
     
     # gns1 = alg_rel(gns1, gns2,'xp', 'yp', align_by,use_grid,max_deg = max_deg, d_m = d_m,f_mode = f_mode,grid_s= grid_s )
     gns1 = bs_alg_loop(gns1, gns2, 'xp', 'yp', align_by, max_deg, d_m.to(u.arcsec).value, max_loop,sig_cl_H = sig_cl_H_aligment, use_grid ='no',f_mode = f_mode)
+    # gns1 = alg_loop(gns1, gns2, 'xp', 'yp', align_by, max_deg, d_m.to(u.arcsec).value, max_loop,sig_cl_H = sig_cl_H_aligment, 
+    #                 grid_s = grid_s, grid_Hmin = grid_Hmin, grid_Hmax = grid_Hmax ,isolation_radius = isolation_radius,  f_mode = f_mode, mag_lim_alig=mag_lim_alig)
 
 # sys.exit(202) 
 # %%
@@ -523,7 +594,7 @@ gns1_mi.meta['max_loop'] = max_loop
 gns1_mi.meta['gns_mags'] = gns_mags
 gns1_mi.meta['max_sig'] = max_sig
 gns1_mi.meta['e_pm_gns'] = e_pm_gns
-gns1_mi.meta['use_grid'] = use_grid
+# gns1_mi.meta['use_grid'] = use_grid
 gns1_mi.meta['grid_s'] = grid_s
 gns1_mi.meta['max_sep'] = max_sep
 gns2_mi.meta['sig_cl_pm'] = sig_cl_pm
@@ -543,7 +614,7 @@ gns2_mi.meta['max_loop'] = max_loop
 gns2_mi.meta['gns_mags'] = gns_mags
 gns2_mi.meta['max_sig'] = max_sig
 gns2_mi.meta['e_pm_gns'] = e_pm_gns
-gns2_mi.meta['use_grid'] = use_grid
+# gns2_mi.meta['use_grid'] = use_grid
 gns2_mi.meta['grid_s'] = grid_s
 gns2_mi.meta['max_sep'] = max_sep
 gns2_mi.meta['sig_cl_pm'] = sig_cl_pm
@@ -557,9 +628,9 @@ gns2_mi.meta['align_by'] = align_by
 gns2_mi.meta['f_mode'] = f_mode
 
 if destination == 1:
-    gns2_mi['xp','yp','ID','l','b'].write(bs1 + f'BS{bs_loop}_gns2_pmSuper_F1_{field_one}_F2_{field_two}.ecsv', format = 'ascii.ecsv', overwrite = True)
+    gns2_mi['xp','yp','ID','l','b'].write(bs2 + f'BS{bs_loop}_gns2_pmSuper_F1_{field_one}_F2_{field_two}.ecsv', format = 'ascii.ecsv', overwrite = True)
 
-sys.exit(555)
+sys.exit(623)
 
 # %%
 # e_pm_gns = 2##
@@ -1011,7 +1082,7 @@ ax_histy.axis('off')
 plt.show()
 
 meta = {'Title': 'v-p.png','script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_absolute_SUPER/SUPER_alignment.py'}
-plt.savefig('/Users/amartinez/Desktop/for_people/for_Rainer/v-p_rel.png', transparent=True, bbox_inches = 'tight', metadata = meta)
+# plt.savefig('/Users/amartinez/Desktop/for_people/for_Rainer/v-p_rel.png', transparent=True, bbox_inches = 'tight', metadata = meta)
 # %%
 
 pm_gns_p = np.hypot(gns_ga_m['pm_x'], gns_ga_m['pm_y'])

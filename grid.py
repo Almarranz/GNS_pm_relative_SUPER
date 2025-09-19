@@ -51,9 +51,14 @@ def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolat
 
     
     # Step 2: Create the Grid
-    x_edges = np.linspace(x_min, x_max, grid_size + 1)
+    # x_edges = np.linspace(x_min, x_max, grid_size + 1)
     # y_edges = np.linspace(y_min, y_max, grid_size + 1)
-    y_edges = np.linspace(y_min, y_max, int(grid_size/2) + 1)
+    
+    # x_edges = np.linspace(x_min, x_max, grid_size + 1)
+    # y_edges = np.linspace(y_min, y_max, int(grid_size/2) + 1)
+    
+    y_edges = np.linspace(y_min, y_max, grid_size + 1)
+    x_edges = np.linspace(x_min, x_max, int(grid_size/2) + 1)
 
     # Step 3: Filter by Magnitude
     filtered_stars = table[(table[mag_col] >= mag_min) & (table[mag_col] <= mag_max)]

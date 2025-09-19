@@ -85,8 +85,6 @@ def bs_alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,use_grid,
         l1_xy = np.array([gns_A[col1],gns_A[col2]]).T
         
         comp = compare_lists(l1_xy,l2_xy,d_m)
-       
-        
         if len(comom_ls) >1:
             # if comom_ls[-1] < comom_ls[-2]:
             if (comom_ls[-1] <= comom_ls[-2]) and loop >= max_loop:

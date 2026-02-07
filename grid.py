@@ -12,8 +12,9 @@ import sys
 # gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
 
 
+
 # def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolation_radius):
-def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolation_radius):
+def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, cell_size, isolation_radius):
     """
     Selects isolated stars from an Astropy Table within specified magnitude limits and spatial isolation criteria.
 
@@ -48,17 +49,22 @@ def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolat
     x_max = np.nanmax(table[x_col])
     y_min = np.nanmin(table[y_col])
     y_max = np.nanmax(table[y_col])
-
+    
+    grid_size_x = int((x_max - x_min)/cell_size)
+    grid_size_y = int((y_max - y_min)/cell_size)
     
     # Step 2: Create the Grid
+    #Equal grid
     # x_edges = np.linspace(x_min, x_max, grid_size + 1)
     # y_edges = np.linspace(y_min, y_max, grid_size + 1)
     
-    # x_edges = np.linspace(x_min, x_max, grid_size + 1)
-    # y_edges = np.linspace(y_min, y_max, int(grid_size/2) + 1)
+    # Double x
+    x_edges = np.linspace(x_min, x_max, grid_size_x + 1)
+    y_edges = np.linspace(y_min, y_max, grid_size_y +1)
     
-    y_edges = np.linspace(y_min, y_max, grid_size + 1)
-    x_edges = np.linspace(x_min, x_max, int(grid_size/2) + 1)
+    # # Double y
+    # y_edges = np.linspace(y_min, y_max, grid_size + 1)
+    # x_edges = np.linspace(x_min, x_max, int(grid_size/2) + 1)
 
     # Step 3: Filter by Magnitude
     filtered_stars = table[(table[mag_col] >= mag_min) & (table[mag_col] <= mag_max)]
@@ -68,7 +74,7 @@ def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size, isolat
     y_indices = np.digitize(filtered_stars[y_col], y_edges) - 1
 
     # Combine x and y indices to create unique cell identifiers
-    cell_indices = x_indices * grid_size + y_indices
+    cell_indices = x_indices * grid_size_y + y_indices  # unique ID per cell
 
     # Step 5: Select Representative Stars
     selected_stars = []

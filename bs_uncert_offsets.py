@@ -48,11 +48,11 @@ rc('font',**{'family':'serif','serif':['Palatino']})
 plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib pop up because so many plots, this turining it of
 # %%
 
-# field_one = 'B1'
-# field_two = 20
-field_one = 16
-field_two = 7
-survey = 1#TODO ONLY for Gaia. Can be 1 or 2
+field_one = 'B1'
+field_two = 20
+# field_one = 16
+# field_two = 7
+survey = 1 #TODO ONLY for Gaia. Can be 1 or 2
 
 
 # pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2off/pruebas/'
@@ -62,24 +62,30 @@ uncer_folder= bs1
 # %%
 # ref_fr = 'gns'#TODO
 color_map ='Greys'
-dmax = 2
-max_sig= 0.5
 degree = 2
-resam = 100
+grid = 'yes'
+# grid = 'no'
+
 for degree in range(degree,degree+1):
                    # /Users/amartinez/Desktop/PhD/HAWK/GNS_1relative/lists/7/uncert_lists/chip4/BS_lists_degre1/
     boot_folder = f'/Users/amartinez/Desktop/PhD/HAWK/GNS_{survey}relative_SUPER/bootstrapping/'
+    
+    if grid == 'yes':
+        it=len(glob.glob(boot_folder+f'BS*_GRID_gns{survey}_pmSuper_F1_{field_one}_F2_{field_two}.ecsv')) 
+    else:
+    
+        it=len(glob.glob(boot_folder+f'BS*_gns{survey}_pmSuper_F1_{field_one}_F2_{field_two}.ecsv')) 
    
-    it=len(glob.glob(boot_folder+f'BS*_gns{survey}_pmSuper_F1_{field_one}_F2_{field_two}.ecsv')) 
     print(it)
-   
     line =[]
     
-    for i in range(1,it+1):
-    # for i in range(1,150):   
+    # for i in range(1,it+1):
+    for i in range(1,10):   
         # xi, yi,RaH1,DecH1, ID
-        f = Table.read(boot_folder +f'BS{i}_gns{survey}_pmSuper_F1_{field_one}_F2_{field_two}.ecsv')
-                      
+        if grid == 'yes':
+            f = Table.read(boot_folder +f'BS{i}_GRID_gns{survey}_pmSuper_F1_{field_one}_F2_{field_two}.ecsv')
+        else:
+             f = Table.read(boot_folder +f'BS{i}_gns{survey}_pmSuper_F1_{field_one}_F2_{field_two}.ecsv')
         
         line.append(f)
     # %
@@ -94,17 +100,25 @@ for degree in range(degree,degree+1):
     
     # sys.exit()
     # %
-    uncer_pos =np.empty((len(sr),6))
+    uncer_pos =np.empty((len(sr),8))
     for ind in range(len(sr)):
         
         data = np.where(ar['ID']==sr[ind])
+        uncer_pos[ind][7] = sr[ind]
+        uncer_pos[ind][6] = ar[data][0]['H']
         uncer_pos[ind][0],uncer_pos[ind][1] = np.mean(ar[data]['xp']),np.mean(ar[data]['yp'])
         # uncer_pos[ind][2],uncer_pos[ind][3] = np.std(ar[data][:,0])*np.sqrt(len(data[0])-1), np.std(ar[data][:,1]*np.sqrt(len(data[0])-1))
         uncer_pos[ind][2],uncer_pos[ind][3] = np.std(ar[data]['xp']), np.std(ar[data]['yp'])
         uncer_pos[ind][4],uncer_pos[ind][5] = np.mean(ar[data]['l']),np.mean(ar[data]['b'])
     
-    # np.savetxt(uncer_folder + 'uncer_alig_bs_f%sc%s_deg%s_dmax%s_sxy%s.txt'%(field_one,chip_one,degree,dmax,max_sig),uncer_pos,fmt ='%.6f',
-    #            header = '# x_mean, y_mean, x_std, y_std, Ra_mean, Dec_mean')    
+    colnames = ['x_mean', 'y_mean', 'x_std', 'y_std', 
+            'Ra_mean', 'Dec_mean', 'H','ID']
+    tab = Table(uncer_pos, names=colnames)
+    tab.sort('ID')
+    tab.write(uncer_folder  + f'uncer_alig_F1_{field_one}_F2_{field_two}.txt', format='ascii', overwrite=True)
+   
+    # np.savetxt(uncer_folder + f'uncer_alig_F1_{field_one}_F2_{field_two}.txt',uncer_pos,fmt ='%.6f',
+    #            header = '# x_mean, y_mean, x_std, y_std, Ra_mean, Dec_mean',)    
    
     if ind % int(len(sr)/10) ==0:
         print('%.0f percent of the data done'%(10*ind /int(len(sr)/10)))
@@ -146,15 +160,18 @@ for degree in range(degree,degree+1):
 # %%
     
    
-    fig, ax = plt.subplots(1,1,figsize = (10,10))
-    num_bins = (20,24)
+    fig, ax = plt.subplots(1,1,figsize = (7,7))
+    num_bins = (17,24)
+    
+    unce_value = (uncer_pos[:,2] + uncer_pos[:,3])/2
+    # unce_value = (uncer_pos[:,2]**2 + uncer_pos[:,3]**2)**0.5
     statistic, x_edges, y_edges, binnumber = binned_statistic_2d(uncer_pos[:,4],uncer_pos[:,5],
-                                                                 (uncer_pos[:,2]) + (uncer_pos[:,3])/2 , 
+                                                                 unce_value, 
                                                                  statistic='mean', bins=(num_bins))
     X, Y = np.meshgrid(x_edges, y_edges)
     # im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',norm=colors.LogNorm())
     im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r' )
-    # im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',vmin = 0.5, vmax = 3.5 )
+    # im = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',vmin = 0.5, vmax = 3.6 )
     # im = ax.pcolormesh(X, Y, statistic.T, cmap='Set1_r',vmin = 0.5, vmax = 2 )
     
     # ax.set_title('alignment uncertainty')
@@ -168,6 +185,8 @@ for degree in range(degree,degree+1):
 
     
     cbar = fig.colorbar(im, label = '$\overline{\sigma}_{(l,b)}$ [mas]', aspect = 30, pad = -0.1)
+    # cbar = fig.colorbar(im, label = '$\overline{\sigma}_{(l,b)}$ [mas]', fraction = 0.0218)
+    # cbar = fig.colorbar(im, label = '$||(l,b)||$ [mas]', fraction = 0.0218)
     # cbar = fig.colorbar(im, aspect = 30, pad = -0.1)
     # cbar.ax.set_yticklabels([])
     # cbar.ax.set_yticklabels([0.5,'',1, 2])
@@ -176,10 +195,12 @@ for degree in range(degree,degree+1):
     # cbar.ax.set_yticklabels([0.5,1, 2])
     ax.axis('scaled')
     # fig.tight_layout()
-    
+    fig.tight_layout()
     meta = {'scrip':'/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relative_SUPER/bs_uncert_offsets.py'}
     article = '/Users/amartinez/Desktop/PhD/My_papers/GNS_pm_catalog/images/'
-    plt.savefig(article + 'arches_alig_error.png', bbox_inches='tight', transparent = 'True', dpi = 150, metadata = meta)
+    # plt.savefig(article + 'arches_grid_alig_error.png', bbox_inches='tight', transparent = 'True', dpi = 150, metadata = meta)
+    # plt.savefig(article + 'B1_grid_alig_error.png', bbox_inches='tight', transparent = 'True', dpi = 150, metadata = meta)
+   
     plt.show()
 # statistic, x_edges, y_edges, binnumber = binned_statistic_2d(x, y, vx*-1, statistic='median', bins=(num_bins))
 # # statistic, x_edges, y_edges, binnumber = binned_statistic_2d(x_, y_, vx_, statistic='median', bins=(num_bins))

@@ -61,22 +61,23 @@ def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,sig_cl_H, gr
         ax.set_title(f'Ref. Mag selected stars H =[{mag_lim_alig[0]},{mag_lim_alig[1]}]')
         ax.scatter(gns_B['x'], gns_B['y'],s =1, label = f'Ref. stars {len(gns_B)}')
         ax.axis('equal')
+        ax.legend()
         # ax.hist2d(l2_clip['x'], l2_clip['y'],bins = 100, norm = LogNorm())
  
    
     if grid_s is not None:
         # def grid_stars(table, x_col, y_col, mag_col, mag_min, mag_max, grid_size=50, isolation_radius=0.5):
-        gns2_g, x_ed, y_ed = grid_stars(gns_B,col1,col2,'H',grid_Hmin,grid_Hmax,grid_size=grid_s,isolation_radius = isolation_radius)
+        gns2_g, x_ed, y_ed = grid_stars(gns_B,col1,col2,'H',grid_Hmin,grid_Hmax,cell_size=grid_s,isolation_radius = isolation_radius)
         
         fig, ax = plt.subplots(1,1)
         ax.set_title(f'Grid stars {len (gns2_g)}. G_size = {x_ed[2] - x_ed[1]: .1f} x {y_ed[2] - y_ed[1]: .1f}  arsec')
         # hsg = ax.hist2d(gns2_g[col1], gns2_g[col2],bins = int(grid_s/3), norm = LogNorm(), cmap = 'gray')
         # hsg = ax.hist2d(gns2_g[col1], gns2_g[col2],bins = int(grid_s/5), cmap = 'gray')
-        hsg = ax.hist2d(gns2_g[col1], gns2_g[col2],bins = (int(grid_s),int(grid_s/2)), cmap = 'gray')
-        # ax.scatter(gns2_g[col1], gns2_g[col2],s =3,color = 'red', label = 'Grid stars')
+        # hsg = ax.hist2d(gns2_g[col1], gns2_g[col2],bins = (int(grid_s),int(grid_s/2)), cmap = 'gray')
+        ax.scatter(gns2_g[col1], gns2_g[col2],s =3,color = 'red', label = 'Grid stars')
         ax.invert_xaxis()
         ax.axis('equal')
-        fig.colorbar(hsg[3], ax = ax, label = 'Stars/bin')
+        # fig.colorbar(hsg[3], ax = ax, label = 'Stars/bin')
         # sys.exit(74)
        
         

@@ -43,11 +43,14 @@ from alignator_looping import alg_loop
 from scipy import stats
 from matplotlib.ticker import FormatStrFormatter
 import gns_cluster_finder
+import cluster_finder
 from kneed import KneeLocator
 from scipy.stats import binned_statistic
 from scipy.optimize import curve_fit
 from sys import exit as stop
 from astropy.coordinates import Longitude
+from ds9_region import region
+from pyplots import l_function
 # %% 
 # %%plotting parametres
 from matplotlib import rc
@@ -74,24 +77,21 @@ plt.rcParams["mathtext.fontset"] = 'dejavuserif'
 rc('font',**{'family':'serif','serif':['Palatino']})
 plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib pop up because so many plots, this turining it of
 
-# field_one, chip_one, field_two, chip_two,t1,t2,max_sig = np.loadtxt('/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_python/lists/fields_and_chips.txt', 
-#                                                        unpack=True)
-# field_one = field_one.astype(int)
-# chip_one = chip_one.astype(int)
-# field_two = field_two.astype(int)
-# chip_two = chip_two.astype(int)
 
-# sys.exit(75)
+# band1 = 'Ks'
+band1 = 'H'
 
 rebfacI = 2
-rebfacII = 2
+rebfacII = 1
 
 # field_one = 'D12'
 # field_one = 'D13'
+# field_two = 1
 
 
-# field_one = 16
-# field_two = 7
+
+# field_one = 2
+# field_two = 22
 
 # field_one = 'B1'
 # field_two = 20
@@ -99,18 +99,55 @@ rebfacII = 2
 # field_one = 'D19'
 # field_two = 16
 
-field_one = 19
-field_two = 9
+field_one = 16
+field_two = 7
+
+# field_one = 24  
+# field_two = 9
+
+# field_one = 2
+# field_two = 9
+
+# field_one = 2
+# field_two = 9
+
+# field_one = 2
+# field_two = 22
+
+# field_one = 2
+# field_two = 9
 
 chip_one = 0
 chip_two = 0
 
+GNS_1='/Users/amartinez/Desktop/PhD/HAWK/GNS_1/lists/%s/chip%s/'%(field_one, chip_one)
+GNS_2='/Users/amartinez/Desktop/PhD/HAWK/GNS_2/lists/%s/chip%s/'%(field_two, chip_two)
 
-if field_one == 7 or field_one == 12 or field_one == 10 or field_one == 16  or field_one == 19 :
+pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_SUPER/pruebas/'
+pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_SUPER/pruebas/'
+bs1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_SUPER/bootstrapping/'
+bs2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_SUPER/bootstrapping/'
+
+
+dates1 = Table.read('/Volumes/teabag-data/alvaro/GNS_HB_red/GNS1/date_of_field.csv', format = 'ascii')
+dates2 = Table.read('/Volumes/teabag-data/alvaro/GNS_HB_red/GNS2/date_of_field.csv', format = 'ascii')
+# dates1 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/date_of_field.csv', format = 'ascii')
+# dates2 = Table.read('/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/date_of_field.csv', format = 'ascii')
+
+# t1 =  Time(dates1[dates1['field'] == str(field_one)]['H'].value,scale='utc')
+# t2 =  Time(dates2[dates2['field'] == field_two]['H'].value,scale='utc')
+
+# print(f'GNS1 obstime: {t1}')
+# print(f'GNS2 obstime: {t2}')
+# print(t2)
+
+# stop(144)
+
+if field_one == 7 or field_one == 12 or field_one == 10 or field_one == 16  or field_one == 19 or field_one == 2 or field_one == 24  :
     t1 = Time(['2015-06-07T00:00:00'],scale='utc')
 elif field_one == 'B6':
     t1 = Time(['2016-06-13T00:00:00'],scale='utc')
-elif field_one ==  'B1':
+elif field_one ==  'B1' or field_one == 1:
     t1 = Time(['2016-05-20T00:00:00'],scale='utc')
 elif field_one ==  'D12':
     t1 = Time(['2017-06-03T00:00:00'],scale='utc')
@@ -129,7 +166,7 @@ elif field_two == 20:
     t2 = Time(['2022-07-25T00:00:00'],scale='utc')
 elif field_two == 1:
     t2 = Time(['2021-09-17T00:00:00'],scale='utc')
-elif field_two == 16:
+elif field_two == 16 or field_two == 22:
     t2 = Time(['2022-08-14T00:00:00'],scale='utc')
 elif field_two == 9:
     t2 = Time(['2021-08-14T00:00:00'],scale='utc')
@@ -161,7 +198,7 @@ center_only = 'no'
 # =============================================================================
 # QUALITY CUTS
 # =============================================================================
-gns_mags = [12, 22]#!!! GNS mag limtis
+gns_mags = [10, 22]#!!! GNS mag limtis
 # gns_mags = [None, None]#!!! GNS mag limtis
 max_sig = 0.05# arcsec Max uncertainty position (l,b)
 # max_sig = 1000# arcsec Max uncertainty position (l,b)
@@ -181,18 +218,19 @@ isolation_radius = 0.7#arcsec isolation of the grid stars
 # =============================================================================
 # ALIGNMENT PARAMS
 # =============================================================================
-max_loop = 3
-# mag_lim_alig = None# H Limits of the algnment stars
+max_loop = 5
+mag_lim_alig = None# H Limits of the algnment stars
 mag_lim_alig = [12, 18]# H Limits of the algnment stars
 max_sep = 50*u.mas#, firts match gns1 to gns2 for astroaling
 # init_alig = 'polynomial1'# Options are: 'astroalign', 'smilirarity' or 'polynomial<degre of the alignment>'
 init_alig = 'astroalign'# Options are: 'astroalign', 'similirarity' or 'polynomial<degre of the alignment>'
 # init_alig = 'similarity'# Options are: 'astroalign', 'similirarity' or 'polynomial<degre of the alignment>'
-sig_cl = 30#!!!
-max_deg =3# Maximun degree of the alignment minus one()
-centered_in = 2
+sig_cl = 3#!!!
+max_deg = 3# Maximun degree of the alignment minus one()
+centered_in = 1
+# centered_in = 2
 d_m = 50*u.mas#!!! max  distance  for the fine alignment betwenn GNS1 and 2
-# destination =1#!!!1 = GNS2 is reference, 2 = GNS1 in reference
+# destination = 2#!!!1 = GNS2 is reference, 2 = GNS1 in reference
 destination = 1 #!!! GNS1 is reference
 align_by = 'Polywarp'#!!!
 # align_by = '2DPoly'#!!!
@@ -207,28 +245,30 @@ add_aligm_error = 'no'
 # PMs PARAMS
 # =============================================================================
 d_m_pm = 0.150#!!! in arcs, max distance for the proper motions
-e_pm_gns = 1#!!!error cut in proper motio
-# e_pm_gns = .87#!!!error cut in proper motio
-sig_cl_H = 30 # Eliminates bad matches before the proper motions computations
+# e_pm_gns = .9 #!!!error cut in proper motio
+e_pm_gns = None#!!!error cut in proper motio
+if band1 == 'H':
+    sig_cl_H = 3 # Eliminates bad matches before the proper motions computations
+else:
+    sig_cl_H = 1e3 # Eliminates bad matches before the proper motions computations
 sig_cl_pm = 3 # Clipping outlayer from the pm distributions. 
 # sig_cl_pm = None # Clipping outlayer from the pm distributions. 
 # =============================================================================
 # GAIA PARAMS
 # =============================================================================
 
-max_sep_ga = 50*u.mas# separation for comparison with gaia
-e_pm_gaia = 0.3#!!! Maximun error in pm for Gaia stars
+max_sep_ga = 150*u.mas# separation for comparison with gaia
+e_pm_gaia = 1#!!! Maximun error in pm for Gaia stars
 e_pos_gaia = 1
-gaia_mags = [12,18]#!!! Gaia mag limtis for comparison with GNS
+gaia_mags = [12,18.5]#!!! Gaia mag limtis for comparison with GNS
 sig_ga = 3   # CLipping 3sigma residuals of position with Gaia
-r_search_gaia = 0.7*u.degree #  distance around a center point to look for Gaia stars
 
 # =============================================================================
 # Cluster
 # =============================================================================
-look_for_cluster = 'no'
-# look_for_cluster = 'yes'
-
+# look_for_cluster = 'no'
+look_for_cluster = 'yes'
+# 
 def sig_f(x, y,s):
     mx, lx, hx = sigma_clip(x , sigma = s, masked = True, return_bounds= True)
     my, ly, hy = sigma_clip(y , sigma = s, masked = True, return_bounds= True)
@@ -236,29 +276,41 @@ def sig_f(x, y,s):
     
     return m_xy, [lx,hx,ly,hy]
 # %% 
-GNS_1='/Users/amartinez/Desktop/PhD/HAWK/GNS_1/lists/%s/chip%s/'%(field_one, chip_one)
-GNS_2='/Users/amartinez/Desktop/PhD/HAWK/GNS_2/lists/%s/chip%s/'%(field_two, chip_two)
 
-pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_SUPER/pruebas/'
-pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_SUPER/pruebas/'
-bs1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_SUPER/bootstrapping/'
-bs2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_SUPER/bootstrapping/'
 # 
 if chip_one == 0:
     # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
-    gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/F{field_one}/{field_one}_H_chips_opti_rebfac{rebfacI}.ecsv',  format = 'ascii.ecsv')
-    # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/F{field_one}/{field_one}_H_chips_opti_rebfac{rebfacI}.ecsv',  format = 'ascii.ecsv')
     # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/F{field_one}/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
+    # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/F{field_one}/{field_one}_H_chips_opti_rebfac{rebfacI}.ecsv',  format = 'ascii.ecsv')
+    # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/F{field_one}/{field_one}_H_chips_opti_noDup_rebfac{rebfacI}.ecsv',  format = 'ascii.ecsv')
+    # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/F{field_one}/{field_one}_{band1}_chips_opti_noDup_rebfac{rebfacI}.ecsv',  format = 'ascii.ecsv')
+    gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/F{field_one}/{field_one}_{band1}_chips_opti_rebfac{rebfacI}.ecsv',  format = 'ascii.ecsv')
+    # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/F{field_one}/{field_one}_H_chips_opti_OLD.ecsv',  format = 'ascii.ecsv')
     # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/F{field_one}/{field_one}_H_chips_opti_rebfac{rebfacI}_VVV.ecsv',  format = 'ascii.ecsv')
+    
+    # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/F{field_one}/{field_one}_H_chips_opti_noDup_rebfac{rebfacI}.ecsv',  format = 'ascii.ecsv')
+
     
     # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}_old/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
     # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_H_chips_opti_rebf1.ecsv',  format = 'ascii.ecsv')
+    
+    # gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_and_D13_comb.ecsv',  format = 'ascii.ecsv')
+    
+# =============================================================================
+#     gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS1/tiles/tile_gns1_Ori_f8.txt',  format = 'ascii')
+#     gns1['l'] = gns1['l']*u.degree
+#     gns1['b'] = gns1['b']*u.degree
+#     gns1['sl'] = gns1['sl']*u.arcsec
+#     gns1['sb'] = gns1['sb']*u.arcsec
+#     gns1['H'] = gns1['m'] 
+# =============================================================================
+    
     gns1['ID'] = np.arange(len(gns1))
 else:
     gns1 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_one}/{field_one}_H_chips_opti.ecsv',  format = 'ascii.ecsv')
     gns1['ID'] = np.arange(len(gns1))
 
-gns1 = filter_gns_by_percentile(gns1, mag_col='H', err_col='dH', sl_col='sl', sb_col='sb', bin_width=bin_width, percentile_H=perc_H, percentile_lb=perc_lb, mag_lim = None, pos_lim = None)
+# gns1 = filter_gns_by_percentile(gns1, mag_col='H', err_col='dH', sl_col='sl', sb_col='sb', bin_width=bin_width, percentile_H=perc_H, percentile_lb=perc_lb, mag_lim = None, pos_lim = None)
 
 
 
@@ -301,14 +353,24 @@ gns1 = filter_gns_by_percentile(gns1, mag_col='H', err_col='dH', sl_col='sl', sb
 
 
 
-# gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
+gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
 # gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/F{field_two}/some_lists/{field_two}_H_chips_opti_rebfac2.ecsv' )
 # gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/F{field_two}/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
 # gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/F{field_two}/{field_two}_H.ecsv', format = 'ascii.ecsv')
 # gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/F{field_two}/{field_two}_H_chips_opti_RS.ecsv', format = 'ascii.ecsv')
-gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/F{field_two}/{field_two}_H_chips_opti_rebfac{rebfacII}.ecsv', format = 'ascii.ecsv')
+# gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/F{field_two}/{field_two}_H_chips_opti_rebfac{rebfacII}.ecsv', format = 'ascii.ecsv')
 # gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/F{field_two}/{field_two}_H_chips_opti_rebfac{rebfacII}_VVV.ecsv', format = 'ascii.ecsv')
 # gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/F{field_two}/{field_two}_H_chips_opti_rebfac{rebfacII}_old.ecsv', format = 'ascii.ecsv')
+# gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/F{field_two}/{field_two}_H_chips_opti_noDup_rebfac{rebfacII}.ecsv', format = 'ascii.ecsv')
+
+# =============================================================================
+# gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/superlists/GNS2/tiles/tile_gns2_Ori_f8.txt',  format = 'ascii')
+# gns2['l'] = gns2['l']*u.degree
+# gns2['b'] = gns2['b']*u.degree
+# gns2['H'] = gns2['m'] 
+# gns2['sl'] = gns2['sl']*u.arcsec
+# gns2['sb'] = gns2['sb']*u.arcsec
+# =============================================================================
 
 # gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}_old/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
 # gns2 = Table.read(f'/Users/amartinez/Desktop/Projects/GNS_gd/pruebas/F{field_two}/{field_two}_H_chips_opti_rebf1.ecsv', format = 'ascii.ecsv')
@@ -328,7 +390,10 @@ gns1_wr = gns1_wr[buenos1]
 
 # %%
 
-
+# extra_cut = -0.08
+# #
+# gns1 = gns1[gns1['l'] > extra_cut]
+# gns1_wr = gns1_wr[gns1_wr > extra_cut*u.deg]
 
 
 # 
@@ -350,30 +415,30 @@ gns1_wr = gns1_wr[buenos1]
 all_1 = len(gns1)
 
 fig, (ax, ax2) = plt.subplots(1,2, figsize = (20,10))
-ax.hist2d(gns1['H'],gns1['sl'], bins = 100,norm = LogNorm())
-his = ax2.hist2d(gns1['H'],gns1['sb'], bins = 100,norm = LogNorm())
+ax.hist2d(gns1[band1],gns1['sl'], bins = 100,norm = LogNorm())
+his = ax2.hist2d(gns1[band1],gns1['sb'], bins = 100,norm = LogNorm())
 fig.colorbar(his[3], ax =ax2)
 ax.set_title('GNS1')
 ax.set_ylabel('$\sigma l$ [arcsec]')
 ax2.set_ylabel('$\sigma b$ [arcsec]')
-ax.set_xlabel('[H]')
-ax2.set_xlabel('[H]')
+ax.set_xlabel(band1)
+ax2.set_xlabel(f'[{band1}]')
 fig.tight_layout()
 ax.axhline(max_sig,ls = 'dashed', color = 'r')
 if gns_mags[1] is not None:
     ax.axvline(gns_mags[1],ls = 'dashed', color = 'r')
 
-ax.set_xticks(np.arange(min(np.floor(gns1['H'])), max(gns1['H']),1))
-ax2.set_xticks(np.arange(min(np.floor(gns1['H'])), max(gns1['H']),1))
+ax.set_xticks(np.arange(min(np.floor(gns1[band1])), max(gns1[band1]),1))
+ax2.set_xticks(np.arange(min(np.floor(gns1[band1])), max(gns1[band1]),1))
 
 ax.grid()
 ax2.grid()
 
 fig, ax = plt.subplots(1,1)
-hits = ax.hist2d(gns1['H'],(gns1['sl'] +gns1['sl'])/2,  bins = 100,norm = LogNorm())
+hits = ax.hist2d(gns1[band1],(gns1['sl'] +gns1['sl'])/2,  bins = 100,norm = LogNorm())
 fig.colorbar(his[3], ax =ax)
 ax.set_ylabel('($\sigma l + + \sigma b$)/2 [arcsec]')
-ax.set_xlabel('[H]')
+ax.set_xlabel(f'[{band1}]')
 fig.tight_layout()
     
 # %%
@@ -385,7 +450,7 @@ gns2 = gns2[buenos2]
 
 gns2_wr = gns2_wr[buenos2]
 # gns2['ID'] = np.arange(len(gns2))
-gns2 = filter_gns_by_percentile(gns2, mag_col='H', err_col='dH', sl_col='sl', sb_col='sb', bin_width=bin_width, percentile_H=perc_H, percentile_lb=perc_lb, mag_lim = None, pos_lim = None)
+# gns2 = filter_gns_by_percentile(gns2, mag_col='H', err_col='dH', sl_col='sl', sb_col='sb', bin_width=bin_width, percentile_H=perc_H, percentile_lb=perc_lb, mag_lim = None, pos_lim = None)
 
 fig, ax = plt.subplots(1,1)
 ax.scatter(gns2_wr, gns2['b'] )
@@ -419,7 +484,7 @@ ax2_2.grid()
 
 all_2 = len(gns2)
 
-gns1 = filter_gns_data(gns1, max_e_pos = max_sig, max_mag = gns_mags[0], min_mag = gns_mags[1] )
+gns1 = filter_gns_data(gns1, max_e_pos = max_sig, max_mag = gns_mags[0], min_mag = gns_mags[1], band = band1 )
 gns2 = filter_gns_data(gns2, max_e_pos = max_sig, max_mag = gns_mags[0], min_mag = gns_mags[1] )
 
 # %%
@@ -516,12 +581,99 @@ ax2_2.set_title(f'Clipped {100 - 100*len(gns2)/all_2:.1f}%')
 
 if centered_in == 1:
     center = SkyCoord(l = np.mean(gns1_wr), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
+    # center = SkyCoord(l = 359.9443, b = -0.0462, unit = 'degree', frame = 'galactic')
 elif centered_in == 2:
     center = SkyCoord(l = np.mean(gns2_wr), b = np.mean(gns2['b']), unit = 'degree', frame = 'galactic')
     
 
 gns1_lb = SkyCoord(l = gns1['l'], b = gns1['b'], unit ='deg', frame = 'galactic')
 gns2_lb = SkyCoord(l = gns2['l'], b = gns2['b'], unit ='deg', frame = 'galactic')
+# =============================================================================
+# # =============================================================================
+# # 
+# # =============================================================================
+# # 1. Select bright stars
+# bright_mask = gns1['H'] < 13
+# bright_coords = gns1_lb[bright_mask]
+# 
+# # 2. Search for all pairs of bright stars within a distance
+# threshold = 0.5 * u.arcsec
+# 
+# idx1, idx2, sep2d, _ = search_around_sky(
+#         bright_coords,
+#         bright_coords,
+#         threshold
+# )
+# 
+# check = np.c_[idx1,idx2,sep2d.to(u.mas).value]
+# 
+# # 3. Remove self-matches (each star matches itself at sep=0)
+# self_matches = idx1 != idx2
+# idx1 = idx1[self_matches]
+# idx2 = idx2[self_matches]
+# 
+# # 4. Any star involved in a "close pair" is considered a duplicate
+# duplicate_bright = np.zeros(len(bright_coords), dtype=bool)
+# duplicate_bright[np.unique(idx1)] = True
+# duplicate_bright[np.unique(idx2)] = True
+# 
+# # 5. We keep only the isolated bright stars
+# keep_bright = np.logical_not(duplicate_bright)
+# 
+# # 6. Build final mask for the full catalog
+# final_mask = np.ones(len(gns1), dtype=bool)
+# final_mask[bright_mask] = keep_bright
+# 
+# # 7. Apply filtering
+# gns1 = gns1[final_mask]
+# gns1_lb = gns1_lb[final_mask]
+# # =============================================================================
+# # 
+# # =============================================================================
+# 
+# # =============================================================================
+# # 
+# # =============================================================================
+# # 1. Select bright stars
+# bright_mask = gns2['H'] < 13
+# bright_coords = gns2_lb[bright_mask]
+# 
+# # 2. Search for all pairs of bright stars within a distance
+# threshold = 0.5 * u.arcsec
+# 
+# idx1, idx2, sep2d, _ = search_around_sky(
+#         bright_coords,
+#         bright_coords,
+#         threshold
+# )
+# 
+# check = np.c_[idx1,idx2,sep2d.to(u.mas).value]
+# 
+# # 3. Remove self-matches (each star matches itself at sep=0)
+# self_matches = idx1 != idx2
+# idx1 = idx1[self_matches]
+# idx2 = idx2[self_matches]
+# 
+# # 4. Any star involved in a "close pair" is considered a duplicate
+# duplicate_bright = np.zeros(len(bright_coords), dtype=bool)
+# duplicate_bright[np.unique(idx1)] = True
+# duplicate_bright[np.unique(idx2)] = True
+# 
+# # 5. We keep only the isolated bright stars
+# keep_bright = np.logical_not(duplicate_bright)
+# 
+# # 6. Build final mask for the full catalog
+# final_mask = np.ones(len(gns2), dtype=bool)
+# final_mask[bright_mask] = keep_bright
+# 
+# # 7. Apply filtering
+# gns2 = gns2[final_mask]
+# gns2_lb = gns2_lb[final_mask]
+# # =============================================================================
+# # 
+# # =============================================================================
+# 
+# =============================================================================
 
 xg_1, yg_1 = center.spherical_offsets_to(gns1_lb)
 xg_2, yg_2 = center.spherical_offsets_to(gns2_lb)
@@ -553,6 +705,7 @@ cb = fig.colorbar(c, ax=ax,  fraction = 0.05, aspect = 30)
 cb.set_label('Position uncertainty (ℓ, b) [arcsec]', fontsize=20, labelpad = 20) 
 # ax.set_title(f'GNS1 Max $\delta$ posit = {max_sig}. Max mag = {gns_mags[1]}')
 ax.set_xlabel('l')
+ax.invert_xaxis()
 ax.set_ylabel('b')
 # ax.axis('scaled')
 ax.axis('equal')
@@ -574,9 +727,11 @@ c = ax.pcolormesh(X, Y, statistic.T, cmap='Spectral_r',vmin = 0, vmax = max_sig*
 fig.colorbar(c, ax=ax, label='$\sqrt {\delta l^{2} + \delta b^{2}}$ [arcsec]', shrink = 1)
 ax.set_title(f'GNS2 Max $\delta$ posit = {max_sig}. Max mag = {gns_mags[1]}')
 ax.set_xlabel('l')
+ax.invert_xaxis()
 ax.set_ylabel('b')
 ax.axis('equal')# %%
 ax.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+
 #I cosider a math if the stars are less than 'max_sep' arcsec away 
 # This is for cutting the the overlapping areas of both lists. (Makes astroaling work faster)
 # sys.exit(237)
@@ -606,27 +761,29 @@ gns1_match= gns1[idx1_clean]
 gns2_match = gns2[idx2_clean]
 
 
-diff_H = gns2_match['H']-gns1_match['H']
 
-mask_H, l_lim,h_lim = sigma_clip(diff_H, sigma=sig_cl_H, masked = True, return_bounds= True, maxiters= 50)
-
-gns2_match = gns2_match[np.logical_not(mask_H.mask)]
-gns1_match = gns1_match[np.logical_not(mask_H.mask)]
-
-
-
-fig,(ax,ax2) = plt.subplots(1,2)
-ax.set_title(f'Matching starts {len(gns2_match)}')
-ax.hist(diff_H[np.logical_not(mask_H.mask)], bins = 'auto',histtype = 'step')
-ax.hist(diff_H, bins = 'auto', color = 'grey', alpha = 0.3)
-ax.axvline(np.mean(diff_H), color = 'k', ls = 'dashed', label = '$\overline{\Delta H}$= %.2f$\pm$%.2f'%(np.mean(diff_H),np.std(diff_H)))
-ax.axvline(l_lim, ls = 'dashed', color ='r', label ='%s$\sigma$'%(sig_cl_H))
-
-ax2.hist2d(gns2_match['H'],diff_H[np.logical_not(mask_H.mask)], bins = 100, norm = LogNorm())
-ax2.set_ylim(-2,2)
-ax.axvline(h_lim, ls = 'dashed', color ='r')
-ax.set_xlabel('$\Delta H$')
-ax.legend() 
+if band1 == 'H':
+    diff_H = gns2_match['H']-gns1_match[band1]
+    
+    mask_H, l_lim,h_lim = sigma_clip(diff_H, sigma=sig_cl_H, masked = True, return_bounds= True, maxiters= 50)
+    
+    gns2_match = gns2_match[np.logical_not(mask_H.mask)]
+    gns1_match = gns1_match[np.logical_not(mask_H.mask)]
+    
+    
+    
+    fig,(ax,ax2) = plt.subplots(1,2)
+    ax.set_title(f'Matching starts {len(gns2_match)}')
+    ax.hist(diff_H[np.logical_not(mask_H.mask)], bins = 'auto',histtype = 'step')
+    ax.hist(diff_H, bins = 'auto', color = 'grey', alpha = 0.3)
+    ax.axvline(np.mean(diff_H), color = 'k', ls = 'dashed', label = '$\overline{\Delta H}$= %.2f$\pm$%.2f'%(np.mean(diff_H),np.std(diff_H)))
+    ax.axvline(l_lim, ls = 'dashed', color ='r', label ='%s$\sigma$'%(sig_cl_H))
+    
+    ax2.hist2d(gns2_match['H'],diff_H[np.logical_not(mask_H.mask)], bins = 100, norm = LogNorm())
+    ax2.set_ylim(-2,2)
+    ax.axvline(h_lim, ls = 'dashed', color ='r')
+    ax.set_xlabel('$\Delta H$')
+    ax.legend() 
 
 
 # stop(595)
@@ -873,6 +1030,21 @@ gns2_mi.meta['f_mode'] = f_mode
 gns2_mi.write(pruebas2 + f'gns2_pmSuper_F1_{field_one}_F2_{field_two}.ecsv', format = 'ascii.ecsv', overwrite = True)
 
 
+# =============================================================================
+# Hyper-velocity star
+# =============================================================================
+
+# hv = 25# We cosider hv if pm > 25 mas/yr (1000 km/s)
+
+# hv_mask = np.sqrt(gns1_mi['pm_x']**2 + gns1_mi['pm_y']**2) > hv
+
+# gns1_hv = gns1_mi[hv_mask]
+# gns2_hv = gns2_mi[hv_mask]
+
+# gns1_hv['H2'] = gns2_hv['H']
+# gns1_hv.write(pruebas1 +  f'HV_gns1_pmSuper_F1_{field_one}_F2_{field_two}.ecsv', format = 'ascii.ecsv', overwrite = True)
+# print(gns1_hv['pm_x', 'pm_y','H', 'H2'])
+# stop()
 
 # %%
 fig, ax = plt.subplots(figsize = (10,10))
@@ -908,9 +1080,9 @@ fig, ax = plt.subplots(1,1)
 # ax.set_title(f'RELATIVE GNS1= f{field_one}, GNS2 = F{field_two}')
 normal = False
 lw = 3
-mean_br = (gns2_br['dpm_x'] + gns2_br['dpm_y'])/2
+# mean_br = (gns2_br['dpm_x'] + gns2_br['dpm_y'])/2
 # mean_br = gns2_br['dpm_y'] 
-# mean_br = np.sqrt(gns2_br['dpm_x']**2 + gns2_br['dpm_y']**2)
+mean_br = np.sqrt(gns2_br['dpm_x']**2 + gns2_br['dpm_y']**2)
 mean_rc = (gns2_rc['dpm_x'] + gns2_rc['dpm_y'])/2
 # mean_rc = gns2_rc['dpm_x']
 
@@ -935,47 +1107,58 @@ meta = {'Script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relat
 # plt.savefig(f'/Users/amartinez/Desktop/PhD/My_papers/GNS_pm_catalog/images/gns_epm_hist_f1_{field_one}_F2_{field_two}.png', dpi = 150, transparent = True, metadata = meta)
 # sys.exit(840)
 # %%
-# e_pm_gns = 2##
+# e_pm_gns = 0.75##
 gns1_m = filter_gns_data(gns1_mi, max_e_pm = e_pm_gns)
 gns2_m = filter_gns_data(gns2_mi, max_e_pm = e_pm_gns)
 
+bA, cA = l_function(gns2_mi, 'H', 0.3, m_l = 10, m_h = 22)
+bB, cB = l_function(gns2_m, 'H', 0.3, m_l = 10, m_h = 22)
 
+plt.figure()
+
+plt.plot(bA, cA, marker = '.', label = 'All pm')
+plt.plot(bB, cB, marker = '.', label = f'$\sigma \mu$ < {e_pm_gns} ')
+plt.legend()
+plt.gca().set_yscale('log')
+plt.show()
+# stop(1045)
 # %%
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-dh = gns2_m['H'] - gns1_m['H']
-
-
-
-fig, (ax,ax2,ax3) = plt.subplots(1,3, figsize = (21,7))
-ax.hist(dh, bins = 'auto', label = '$\overline{\Delta H}$ =%.2f\n$\sigma$ = %.2f'%(np.mean(dh) ,np.std(dh) ))
-ax2.axhline(l_lim, color = 'red', ls = 'dashed')
-ax2.axhline(h_lim, color = 'red', ls = 'dashed')
-ax.legend()
-ax.set_title(f'gns1 -> f{field_one}c{chip_one}. GNS2 -> F{field_two}C{chip_two}')
-ax.set_xlabel('$\Delta$[H]')
-# ax2.scatter(gns1['H1'][l_12['ind_1']], dh)
-his = ax2.hist2d(gns1_m['H'], dh, bins = 100, norm = LogNorm())
-ax2.set_ylabel('$\Delta$[H]')
-ax2.set_xlabel('GNS1[H]')
-ax2.grid()
-his3 = ax3.hist2d(gns2_m['H'], dh, bins = 100, norm = LogNorm())
-ax3.set_xlabel('GNS2[H]')
-
-ax3.grid()
-ax.set_xlim(-2,2)
-ax2.set_xlim(11,22)
-ax3.set_xlim(11,22)
-ax2.set_ylim(-2,2)
-ax3.set_ylim(-2,2)
-divider = make_axes_locatable(ax3)
-cax = divider.append_axes("right", size="5%", pad=0.1)
-fig.colorbar(his3[3], cax=cax)
-
-fig.tight_layout()
-
-mask_H, l_lim,h_lim = sigma_clip(dh, sigma=sig_cl_H, masked = True, return_bounds= True, maxiters= 50)
-gns1_m = gns1_m[np.logical_not(mask_H.mask)]
-gns2_m = gns2_m[np.logical_not(mask_H.mask)]
+if band1 == 'H':
+    dh = gns2_m['H'] - gns1_m['H']
+    
+    
+    
+    fig, (ax,ax2,ax3) = plt.subplots(1,3, figsize = (21,7))
+    ax.hist(dh, bins = 'auto', label = '$\overline{\Delta H}$ =%.2f\n$\sigma$ = %.2f'%(np.mean(dh) ,np.std(dh) ))
+    ax2.axhline(l_lim, color = 'red', ls = 'dashed')
+    ax2.axhline(h_lim, color = 'red', ls = 'dashed')
+    ax.legend()
+    ax.set_title(f'gns1 -> f{field_one}c{chip_one}. GNS2 -> F{field_two}C{chip_two}')
+    ax.set_xlabel('$\Delta$[H]')
+    # ax2.scatter(gns1['H1'][l_12['ind_1']], dh)
+    his = ax2.hist2d(gns1_m['H'], dh, bins = 100, norm = LogNorm())
+    ax2.set_ylabel('$\Delta$[H]')
+    ax2.set_xlabel('GNS1[H]')
+    ax2.grid()
+    his3 = ax3.hist2d(gns2_m['H'], dh, bins = 100, norm = LogNorm())
+    ax3.set_xlabel('GNS2[H]')
+    
+    ax3.grid()
+    ax.set_xlim(-2,2)
+    ax2.set_xlim(11,22)
+    ax3.set_xlim(11,22)
+    ax2.set_ylim(-2,2)
+    ax3.set_ylim(-2,2)
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes("right", size="5%", pad=0.1)
+    fig.colorbar(his3[3], cax=cax)
+    
+    fig.tight_layout()
+    
+    mask_H, l_lim,h_lim = sigma_clip(dh, sigma=sig_cl_H, masked = True, return_bounds= True, maxiters= 50)
+    gns1_m = gns1_m[np.logical_not(mask_H.mask)]
+    gns2_m = gns2_m[np.logical_not(mask_H.mask)]
 
 # %%
 # fig, (ax,ax2) = plt.subplots(1,2, figsize = (16,8))
@@ -1013,8 +1196,8 @@ ax2.set_xlabel('$\Delta\mu_{y}$ [mas/yr]')
 # ax.axvline(lims[1].value , ls = 'dashed', color = 'r')
 # ax2.axvline(lims[2].value , ls = 'dashed', color = 'r')
 # ax2.axvline(lims[3].value , ls = 'dashed', color = 'r')
-ax.set_xlim(-20,20)
-ax2.set_xlim(-20,20)
+# ax.set_xlim(-20,20)
+# ax2.set_xlim(-20,20)
 ax.invert_xaxis()
 
 # ax.invert_xaxis()
@@ -1048,31 +1231,33 @@ ax.set_ylabel('$\overline{\mu}_{(l,b)}$ [mas/yr]')
 extra_mag_cut = [12,18]
 extra_epm = e_pm_gns
 # extra_epm = 0.5
-gns1_mpm = filter_gns_data(gns1_m, max_e_pm = extra_epm, min_mag = extra_mag_cut[1], max_mag = extra_mag_cut[0])
+gns1_mpm = filter_gns_data(gns1_m, max_e_pm = extra_epm, min_mag = extra_mag_cut[1], max_mag = extra_mag_cut[0], band = band1)
 gns2_mpm = filter_gns_data(gns2_m, max_e_pm = extra_epm,  min_mag = extra_mag_cut[1], max_mag = extra_mag_cut[0])
 
 
-radius = abs(np.min(gns1_wr)-np.max(gns1_wr))*r_search_gaia.value 
+# radius = abs(np.min(gns1_wr)-np.max(gns1_wr))*r_search_gaia.value 
+radius = 300*u.arcsec
 # radius = abs(np.min(gns1['l'])-np.max(gns1['l']))*2.6*u.degree
-center_g = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
+# center_g = SkyCoord(l = np.mean(gns1['l']), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic')
 
 try:
-    
-    gaia = Table.read(pruebas1  + 'Nooo_gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,300))
-    # gaia = Table.read(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value))
-    # gaia = Table.read(pruebas1  + 'gaia_f1%s_f2%s_r268.ecsv'%(field_one,field_two))
+    gaia = Table.read(pruebas1  + '------gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value))
     print('Gaia from table')
 except:
     print('Gaia from web')
-
-    center = SkyCoord(l = np.mean(gns1_wr), b = np.mean(gns1['b']), unit = 'degree', frame = 'galactic').icrs
+    gaia = Table.read('/Users/amartinez/Desktop/PhD/Catalogs/Gaia/gaia_over_GNS.txt', format = 'ascii.ecsv')    
+    gaia['id'] = np.arange(len(gaia))
+    gaia['l'] = Longitude(gaia['l']).wrap_at('180d')
+    gaia_coord = SkyCoord(ra = gaia['ra'], dec = gaia['dec'],
+                       frame = 'icrs', obstime = 'J2016').galactic
     
-    Gaia.MAIN_GAIA_TABLE = "gaiadr3.gaia_source" # Select early Data Release 3
-    Gaia.ROW_LIMIT = -1  # it not especifty, Default rows are limited to 50. 
-    j = Gaia.cone_search_async(center, radius = 300*u.arcsec)
-    gaia = j.get_results()
-    gaia.write(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value),overwrite = True)
+    
+    sep = gaia_coord.separation(center)
+    mask_gaia = sep < radius
+    gaia = gaia[mask_gaia]
+    gaia.write(pruebas1  + 'gaia_f1%s_f2%s_r%.0f.ecsv'%(field_one,field_two,radius.to(u.arcsec).value), overwrite = True)
 
+gaia['l'] = Longitude(gaia['l']).wrap_at('180d')
 
 
 # sys.exit(1028)
@@ -1185,6 +1370,8 @@ c_proj = c_gaia.transform_to(offset_frame)
 pm_x_gaia = c_proj.pm_lon_coslat  # mas/yr
 pm_y_gaia = c_proj.pm_lat        # mas/yr
 
+gaia['xp'] = c_proj.lon.to(u.arcsec)
+gaia['yp'] = c_proj.lat.to(u.arcsec)
 gaia['pm_x'] = pm_x_gaia
 gaia['pm_y'] = pm_y_gaia
 
@@ -1238,7 +1425,7 @@ ga_c = SkyCoord(ra = gaia['ra'], dec = gaia['dec'], pm_ra_cosdec = gaia['pmra'],
 gaia['l'] = ga_c.l + (ga_c.pm_l_cosb)*dtg.to(u.yr)
 gaia['b'] = ga_c.b + (ga_c.pm_b)*dtg.to(u.yr)
 
-
+gaia['l'] = Longitude(gaia['l']).wrap_at('180d')
 # %
 # gaia_c = SkyCoord(ra = gaia['ra'], dec = gaia['dec'], 
 #                   pm_ra_cosdec = gaia['pmra'], pm_dec = gaia['pmdec'],
@@ -1270,7 +1457,6 @@ gaia_c = SkyCoord(l = gaia['l'], b = gaia['b'], frame = 'galactic')
 
 # %
 
-stop(1271)
 if destination == 1:
     
     idx,d2d,d3d = gns1_gal.match_to_catalog_sky(gaia_c)
@@ -1337,14 +1523,15 @@ l1 = gns1_gal.l.wrap_at('180d')
 # ⚠️⚠️⚠️⚠️WARNING!!!⚠️⚠️⚠️
 # The pm errors, in both Gaia and GNS have to been proyected to the tangetial plane as well!!!
 # =============================================================================
-# %
+# %%
+# 
 
 
 
-d_pmx_ga = gns_ga['pm_x']- ga_gns['pm_x']
-d_pmy_ga = gns_ga['pm_y']- ga_gns['pm_y']
-# d_pmx_ga = gns_ga['pm_x']- ga_gns['pm_l']
-# d_pmy_ga = gns_ga['pm_y']- ga_gns['pm_b']
+# d_pmx_ga = gns_ga['pm_x']- ga_gns['pm_x']
+# d_pmy_ga = gns_ga['pm_y']- ga_gns['pm_y']
+d_pmx_ga = gns_ga['pm_x'] - ga_gns['pm_l']
+d_pmy_ga = gns_ga['pm_y'] - ga_gns['pm_b']
 # 
 
 e_dpmx = np.sqrt(gns_ga['dpm_x']**2  + ga_gns['pmra_error']**2)
@@ -1364,8 +1551,8 @@ e_dpmy_m = e_dpmy[m_pm]
 
 gax.scatter(ga_gns['phot_g_mean_mag'],ga_gns['pmra_error'])
 gax.scatter(ga_gns['phot_g_mean_mag'],ga_gns['pmdec_error'])
-gax2.scatter(gns_ga['H'],gns_ga['dpm_x'])
-gax2.scatter(gns_ga['H'],gns_ga['dpm_y'])
+gax2.scatter(gns_ga[band1],gns_ga['dpm_x'])
+gax2.scatter(gns_ga[band1],gns_ga['dpm_y'])
 gax2.set_ylim(-0.1,2.6)
 
 # gax2.scatter(ga_gns['phot_g_mean_mag'],ga_gns['ra_error'])
@@ -1422,14 +1609,14 @@ gns1_mpm['pm_y'] -= np.mean(d_pmy_ga_m.value)
 
 
 
-# %%
+# %
 fig, ax_g = plt.subplots(1,1,figsize =(10,10))
 ax_g.set_title(f'Matching distance = {max_sep_ga}. GNS1 F{field_one} GNS2 F{field_two}')
 ax_g.scatter(l1[::1], gns1_mpm['b'][::1],s=1, marker = 'x',label = 'GNS_1 Fied %s, chip %s'%(field_one,chip_one))
 
 gaia_lb_ = SkyCoord(l = ga_gns['l'], b = ga_gns['b'], frame = 'galactic')
 
-gaia_lplot = gaia_lb_.l.wrap_at('359d')
+gaia_lplot = gaia_lb_.l.wrap_at('180d')
 
 # ax.scatter(l2[::10],  gns2_m['b'][::10], label = 'GNS_2 Fied %s, chip %s'%(field_two,chip_two))
 clb = ax_g.scatter(ga_gns['l'],ga_gns['b'], c = np.sqrt(ga_gns['pmra_error']**2 + ga_gns['pmdec_error']**2 ),s =200,label = f'Gaia comp pm = {len(ga_gns)}', cmap = 'Spectral_r', edgecolor = 'k')
@@ -1447,7 +1634,7 @@ ax_g.scatter(ga_gns[np.logical_not(m_pm)]['l'], ga_gns[np.logical_not(m_pm)]['b'
 
 gaia_lb_1 = SkyCoord(l = gaia['l'], b = gaia['b'], frame = 'galactic')
 
-gaia_lplot_1 = gaia_lb_1.l.wrap_at('360.1d')
+gaia_lplot_1 = gaia_lb_1.l.wrap_at('180d')
 ax_g.scatter(gaia_lplot_1, gaia['b'], marker = 'x', color = 'k', alpha = 1)
 lgnd = ax_g.legend()
 ax_g.axis('equal')
@@ -1463,7 +1650,7 @@ for handle in lgnd.legend_handles:
 # # %
 # # Before comparing witg Gaia we mask the best pms
 
-# %%
+# %
 
 # extra_mag_cut = [12,19]
 # extra_epm = 0.5
@@ -1486,14 +1673,17 @@ ax2.axvline(lxy[3], ls = 'dashed', color = 'r')
 ax.legend()
 ax2.legend()
 # %%
-# fig, ax = plt.subplots()
-# ax.set_title('Density plot')
-# # ax.scatter(gns2_mpm['l'], gns2_mpm['b'], s= 1)
-# hst = ax.hist2d(gns2_mpm['l'], gns2_mpm['b'], bins = 50)
-# fig.colorbar(hst[3], ax = ax)
-# ax.invert_xaxis()
-# sys.exit(1115)
+fig, ax = plt.subplots()
+ax.scatter(gns2_mpm['xp'], gns2_mpm['yp'], s= 1)
+ax.scatter(gaia['xp'], gaia['yp'], s= 1)
+ax.scatter(center.l, center.b, marker = '*', color = 'k', s = 200)
+ax.invert_xaxis()
+ax.invert_xaxis()
+ax.axis('scaled')
+sys.exit(1683)
 # %%
+# region(gns2_mpm, 'l', 'b',name = '88_super', save_in = pruebas2, wcs= 'galactic', color = 'blue', marker = 'x')
+region(gns2_mpm, 'l', 'b',name = '88_super', save_in = '/Users/amartinez/Desktop/Projects/GNS_gd/pruebas', wcs= 'galactic', color = 'blue', marker = 'x')
 
 
 if look_for_cluster == 'yes':
@@ -1503,41 +1693,81 @@ if look_for_cluster == 'yes':
     modes = ['pm_xy']
     knn = 20
     gen_sim = 'kernnel'
-    sim_lim ='minimun'
-    # sim_lim ='mean'
+    # sim_lim ='minimun'
+    sim_lim ='mean'
     if destination == 2:
-        clus_dic = gns_cluster_finder.finder(gns2_mpm['pm_x'], gns2_mpm['pm_y'],
-                                     gns2_mpm['xp'], gns2_mpm['yp'], 
-                                     gns2_mpm['l'].value, gns2_mpm['b'].value,
+        clus_dic = cluster_finder.finder(gns2_mpm, 'pm_x', 'pm_y',
+                                     'xp', 'yp', 
+                                     'l', 'b',
                                      modes[0],
-                                     gns2_mpm['H'],gns2_mpm['H'],
+                                     'H','H',
                                      knn,gen_sim,sim_lim, save_reg = pruebas2)
     elif destination == 1:
-        clus_dic = gns_cluster_finder.finder(gns1_mpm['pm_x'], gns1_mpm['pm_y'],
-                                     gns1_mpm['xp'], gns1_mpm['yp'], 
-                                     gns1_mpm['l'].value, gns1_mpm['b'].value,
+        clus_dic = cluster_finder.finder(gns1_mpm, 'pm_x', 'pm_y',
+                                     'xp', 'yp', 
+                                     'l', 'b',
                                      modes[0],
-                                     gns1_mpm['H'],gns1_mpm['H'],
+                                     'H','H',
                                      knn,gen_sim,sim_lim, save_reg = pruebas1)
+    
+    
+    if len(clus_dic) > 0:
+        for i in range(len(clus_dic)):
+            region(clus_dic[f'clus_{i}'],  'l', 'b',
+                   name = f'clus_{i}_f1_{field_one}_f2_{field_two}',
+                   wcs = 'galactic',
+                   color = 'red',
+                   save_in = pruebas1)
+        
+        
+    # Extract IDs of cluster members
+# =============================================================================
+#     clus_ids = set(clus_dic['clus_0']['ID'])
+# 
+#     # Create a membership flag (1 = in cluster, 0 = not in cluster)
+#     gns2_mpm['flag'] = np.array([1 if id_ in clus_ids else 0 
+#                                  for id_ in gns2_mpm['ID']], dtype=int)
+# 
+#     
+#     fig, ax = plt.subplots(1,1)
+#     clusf = gns2_mpm['flag'] == 1
+#     ax.scatter(gns2_mpm['l'], gns2_mpm['b'])
+#     ax.scatter(gns2_mpm['l'][clusf], gns2_mpm['b'][clusf])
+#     ax.axis('equal')
+# 
+# =============================================================================
+
+
+    # gns2_mpm.write('/Users/amartinez/Desktop/for_people/for_Carmen/Arches_field.txt', format = 'ascii.ecsv', overwrite=True)
+
 else:
     print('99')
-    sys.exit(1333)
+ 
+stop(1691)
 # %%
-# clb = ax_g.scatter(ga_gns['l'],ga_gns['b'], c = np.sqrt(ga_gns['pmra_error']**2 + ga_gns['pmdec_error']**2 ),s =200,label = f'Gaia comp pm = {len(ga_gns)}', cmap = 'Spectral_r', edgecolor = 'k')
-# 
-fig, ax = plt.subplots()
-clb = ax.scatter(clus_dic['clus_0']['RA'],clus_dic['clus_0']['Dec'], c = clus_dic['clus_0']['color_A'], s =100,alpha = 1, edgecolor = 'k', cmap = 'Spectral_r')
-fig.colorbar(clb, ax = ax, label = 'H')
 
-ax.axis('equal')
+
 # %%
-l_mean = np.mean(clus_dic['clus_0']['RA'])
-l_mean = np.mean(clus_dic['clus_0']['Dec'])
-l_mean = np.mean(clus_dic['clus_0']['pm_x'])
-l_mean = np.mean(clus_dic['clus_0']['pm_y'])
-arc_eq = SkyCoord(l = 0.1222*u.deg, b = 0.0017*u.deg, pm_l_cosb = -2.72*u.mas/u.yr, pm_b = -0.22*u.mas/u.yr, frame = 'galactic' ).fk5
-print(arc_eq)
-# sys.exit(1333)
+# catalogs = '/Users/amartinez/Desktop/PhD/Catalogs/Candela/'
+# candela = Table.read( catalogs + 'candela.txt', format = 'ascii')
+# region(candela, 'RA', 'Dec',
+#        name = 'candela',
+#        save_in = '/Users/amartinez/Desktop/PhD/regions/Candela/',
+#        wcs = 'fk5',
+#        color = 'cyan',
+#        marker = 'circle')
+
+# candela_y = Table.read(catalogs + 'candela_young.txt', format = 'ascii')
+# region(candela_y, 'RA', 'Dec',
+#        name = 'candela_young',
+#        save_in = '/Users/amartinez/Desktop/PhD/regions/Candela/',
+#        wcs = 'fk5',
+#        color = 'blue',
+#        marker = 'diamond')
+
+# stop(1650)
+
+
 # %%
 rcParams.update({
     "figure.figsize": (10, 5),

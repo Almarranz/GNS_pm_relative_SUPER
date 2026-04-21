@@ -119,7 +119,10 @@ def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,sig_cl_H, gr
         # l2_clip = l2_com
         # l1_clip = l1_com
         
-        diff_mag = l1_com['H'] - l2_com['H'] 
+        try:
+            diff_mag = l1_com['H'] - l2_com['H']
+        except:
+            diff_mag = l1_com['H'] - l2_com['Ks']
         # diff_mag1 = l1_com['IB230_diff'] - l2_com['IB230_diff'] 
         diff_x =  l2_com['x'] - l1_com['x'] 
         diff_y =  l2_com['y'] - l1_com['y'] 

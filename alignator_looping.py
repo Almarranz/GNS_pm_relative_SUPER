@@ -44,7 +44,7 @@ from matplotlib.colors import LogNorm
      aligned gns_A table
  """
 
-def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,sig_cl_H, grid_s = None, grid_Hmin = None, grid_Hmax = None,isolation_radius = None,dm_plots = None, f_mode = None, mag_lim_alig = None  ) :
+def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,sig_cl_H, grid_s = None, grid_Hmin = None, grid_Hmax = None,isolation_radius = None,dm_plots = None, f_mode = None, mag_lim_alig = None, band1 = None  ) :
     loop = 0
     deg = 1
     # max_loop= 10
@@ -119,18 +119,22 @@ def alg_loop(gns_A, gns_B,col1, col2, align_by,max_deg,d_m,max_loop,sig_cl_H, gr
         # l2_clip = l2_com
         # l1_clip = l1_com
         
-        try:
+        if band1 == 'H':
             diff_mag = l1_com['H'] - l2_com['H']
-        except:
-            diff_mag = l1_com['H'] - l2_com['Ks']
+            mask_m, l_lim,h_lim = sigma_clip(diff_mag, sigma=sig_cl, masked = True, return_bounds= True)
+            l1_clip = l1_com[np.logical_not(mask_m.mask)]
+            l2_clip = l2_com[np.logical_not(mask_m.mask)]
+        
+        else:
+            l1_clip = l1_com
+            l2_clip = l2_com
+            
         # diff_mag1 = l1_com['IB230_diff'] - l2_com['IB230_diff'] 
         diff_x =  l2_com['x'] - l1_com['x'] 
         diff_y =  l2_com['y'] - l1_com['y'] 
         diff_xy = (diff_x**2 + diff_y**2)**0.5
-        mask_m, l_lim,h_lim = sigma_clip(diff_mag, sigma=sig_cl, masked = True, return_bounds= True)
         
-        l1_clip = l1_com[np.logical_not(mask_m.mask)]
-        l2_clip = l2_com[np.logical_not(mask_m.mask)]
+        
         
 
         

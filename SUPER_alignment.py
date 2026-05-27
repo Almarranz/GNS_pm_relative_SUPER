@@ -51,6 +51,9 @@ from sys import exit as stop
 from astropy.coordinates import Longitude
 from ds9_region import region
 from pyplots import l_function
+import inspect
+
+
 # %% 
 # %%plotting parametres
 from matplotlib import rc
@@ -125,7 +128,7 @@ field_one = 'D12'
 field_two = 1
 
 chip_one = 0
-chip_two = 0
+chip_two = 2
 
 GNS_1='/Users/amartinez/Desktop/PhD/HAWK/GNS_1/lists/%s/chip%s/'%(field_one, chip_one)
 GNS_2='/Users/amartinez/Desktop/PhD/HAWK/GNS_2/lists/%s/chip%s/'%(field_two, chip_two)
@@ -202,8 +205,9 @@ center_only = 'no'
 # pix_scale = 0.1064*0.5
 # pix_scale = 0.1064
 # max_sig = 0.3#TODO
-CMD = 1 #!!! Load and match Ks lists
-
+# CMD = 1 #!!! Load and match Ks lists
+CMD = 0 #!!! Load and match Ks lists
+extra_cutting = 0
 # =============================================================================
 # QUALITY CUTS
 # =============================================================================
@@ -238,7 +242,7 @@ sig_cl = 3#!!!
 max_deg = 3# Maximun degree of the alignment minus one()
 centered_in = 1
 # centered_in = 2
-d_m = 50*u.mas#!!! max  distance  for the fine alignment betwenn GNS1 and 2
+d_m = 80*u.mas#!!! max  distance  for the fine alignment betwenn GNS1 and 2
 # destination = 2#!!!1 = GNS2 is reference, 2 = GNS1 in reference
 destination = 2 #!!! GNS1 is reference
 align_by = 'Polywarp'#!!!
@@ -291,10 +295,43 @@ if chip_one == 0:
     # gns1 = Table.read(f'/Volumes/teabag-data/alvaro/GNS_HB_red/GNS1/H/F{field_one}/photo/{field_one}_H_chips_opti_noDup.ecsv',  format = 'ascii.ecsv')
     
     gns1 = Table.read(f'/Volumes/teabag-data/alvaro/GNS_HB_red/GNS1/{band1}/F{field_one}/photo/{field_one}_{band1}_chips_opti.ecsv',  format = 'ascii')
+    # gns1 = Table.read(f'/Volumes/teabag-data/alvaro/GNS_HB_red/GNS1/{band1}/F{field_one}/photo/{field_one}_{band1}_chips_opti_noDup.ecsv',  format = 'ascii')
+    print('GNS1 H',len(gns1))
     if CMD and band1 == 'H':
         gns1K = Table.read(f'/Volumes/teabag-data/alvaro/GNS_HB_red/GNS1/Ks/F{field_one}/photo/{field_one}_Ks_chips_opti.ecsv',  format = 'ascii')
-   
-    stop(297)
+        
+        Hlb = SkyCoord(l = gns1['l'], b = gns1['b'], unit = 'degree', frame = 'galactic')
+        Klb = SkyCoord(l = gns1K['l'], b = gns1K['b'], unit = 'degree', frame = 'galactic')
+        
+        
+        # Matching
+        idx, d2d, _ = Hlb.match_to_catalog_sky(Klb)
+        
+        # Selection radius
+        mask = d2d < 100 * u.mas
+        
+        # Filter tables
+        gns1  = gns1[mask]
+        gns1K = gns1K[idx[mask]]
+        print('GNS1 H&Ks',len(gns1))
+        
+        # Add columns
+        gns1['l_K']  = gns1K['l']
+        gns1['b_K'] = gns1K['b']
+        gns1['sl_K']  = gns1K['sl']
+        gns1['sb_K'] = gns1K['sb']
+        gns1['Ks'] = gns1K['Ks']
+        gns1['sKs'] = gns1K['sKs']
+        gns1['dKs'] = gns1K['dKs']
+        
+        fig, ax = plt.subplots(1,1)
+        ax.hexbin(gns1['H'] - gns1['Ks'], gns1['Ks'], norm = LogNorm())
+        ax.invert_yaxis()
+        ax.set_xlabel('H $-$ Ks')
+        ax.set_ylabel('Ks')
+
+        
+    # stop(297)
     # gns1 = Table.read(f'/Volumes/teabag-data/alvaro/GNS_HB_red/GNS1/{band1}/F{field_one}/photo/{field_one}_{band1}_chips_opti_noDup.ecsv',  format = 'ascii')
 
     
@@ -340,10 +377,39 @@ else:
         gns1K['b'].unit = u.degree
         gns1K['sl'].unit = u.arcsec
         gns1K['sb'].unit = u.arcsec
-        gns1K[band1] = gns1['m']
-        gns1K['ID'] = np.arange(len(gns1))
+        gns1K['Ks'] = gns1K['m']
+        gns1K['sKs'] = gns1K['sm']
+        gns1K['ID'] = np.arange(len(gns1K))
 
-
+        
+        Hlb = SkyCoord(l = gns1['l'], b = gns1['b'], frame = 'galactic')
+        Klb = SkyCoord(l = gns1K['l'], b = gns1K['b'], frame = 'galactic')
+        
+        
+        # Matching
+        idx, d2d, _ = Hlb.match_to_catalog_sky(Klb)
+        
+        # Selection radius
+        mask = d2d < 100 * u.mas
+        
+        # Filter tables
+        gns1  = gns1[mask]
+        gns1K = gns1K[idx[mask]]
+        
+        # Add columns
+        gns1['l_K']  = gns1K['l']
+        gns1['b_K'] = gns1K['b']
+        gns1['Ks'] = gns1K['Ks']
+        gns1['sKs'] = gns1K['sKs']
+        # gns1['dKs'] = gns1K['dKs']
+        
+        fig, ax = plt.subplots(1,1)
+        ax.hexbin(gns1['H'] - gns1['Ks'], gns1['Ks'], norm = LogNorm())
+        ax.invert_yaxis()
+        ax.set_xlabel('H $-$ Ks')
+        ax.set_ylabel('Ks')
+        
+   
 # gns1 = filter_gns_by_percentile(gns1, mag_col='H', err_col='dH', sl_col='sl', sb_col='sb', bin_width=bin_width, percentile_H=perc_H, percentile_lb=perc_lb, mag_lim = None, pos_lim = None)
 
 
@@ -383,8 +449,45 @@ else:
 # # plt.savefig('/Users/amartinez/Desktop/PhD/My_papers/SgrB1_cluster/images/dpos_H_gns1.png', bbox_inches='tight', pad_inches=0, dpi = 300, edgecolor = 'white', transparent = True, metadata = meta)
 
 
+# 
 # %%
 
+lcut = 0.54
+bcut = -0.095
+# #
+#
+if chip_one == 0 and extra_cutting:
+    chip1_out = np.logical_not((gns1['l'] > lcut) & (gns1['b'] < bcut))
+    chip1_only = ((gns1['l'] > lcut) & (gns1['b'] < bcut))
+    
+    chip2_out = np.logical_not((gns1['l'] < lcut) & (gns1['b'] < bcut))
+    chip2_only = ((gns1['l'] < lcut) & (gns1['b'] < bcut))
+    
+    chip3_out = np.logical_not((gns1['l'] > lcut) & (gns1['b'] > bcut))
+    chip3_only = ((gns1['l'] > lcut) & (gns1['b'] > bcut))
+    
+    
+    chip4_out = np.logical_not((gns1['l'] < lcut) & (gns1['b'] > bcut))
+    chip4_only = ((gns1['l'] < lcut) & (gns1['b'] > bcut))
+    
+    # gns1_m= gns1[chip4_only]
+    gns1= gns1[chip4_out]
+
+
+# =============================================================================
+# fig, ax = plt.subplots(1,1)
+# ax.scatter(gns1['l'], gns1['b'])
+# ax.scatter(gns1_m['l'], gns1_m['b'])
+# ax.invert_xaxis()
+# 
+# stop(464)
+# =============================================================================
+#
+
+# %%
+
+
+# 
 
 
 # gns2 = Table.read(f'/Volumes/teabag-data/alvaro/GNS_HB_red/GNS2/H/F{field_two}/photo/{field_two}_H_chips_opti.ecsv', format = 'ascii.ecsv')
@@ -443,15 +546,6 @@ buenos1 = (gns1_wr > min(gns2_wr)) & (gns1_wr < max(gns2_wr)) & (gns1['b']>min(g
 gns1 = gns1[buenos1]
 gns1_wr = gns1_wr[buenos1]
 
-# %%
-
-# extra_cut = -0.08
-# #
-# gns1 = gns1[gns1['l'] > extra_cut]
-# gns1_wr = gns1_wr[gns1_wr > extra_cut*u.deg]
-
-
-# 
 
 # %%
 # fig, ax = plt.subplots()
@@ -1240,6 +1334,7 @@ if band1 == 'H':
 # %%
 bins = 'auto'
 fig, (ax,ax2) = plt.subplots(1,2)
+fig.suptitle(f"GNS1 [f{field_one}c{chip_one}], GNS2 [f{field_two}c{chip_two}]", fontsize = 18)
 if mag_lim_alig is not None:
     ax.set_title(f'Ref. GNS{destination}. Deg {max_deg-1}, Mag_lim_alig {mag_lim_alig[0], mag_lim_alig[1]}', fontsize= 15)
 else:
@@ -1708,7 +1803,6 @@ for handle in lgnd.legend_handles:
 # gaia_mags = [13,19]#!!! Gaia mag limtis for comparison with GNS
 # # %
 # # Before comparing witg Gaia we mask the best pms
-
 # %
 
 # extra_mag_cut = [12,19]
@@ -1717,7 +1811,7 @@ for handle in lgnd.legend_handles:
 
 
 fig, (ax,ax2) = plt.subplots(1,2)
-fig.suptitle(f'Gaia-GNS: e_m ={e_pm_gaia,extra_epm}, Mags =[{gaia_mags},{extra_mag_cut}]',fontsize = 15)
+fig.suptitle(f'GNS1 [f{field_one}c{chip_one}], GNS2 [f{field_two}c{chip_two}]\n\nGaia-GNS: e_m ={e_pm_gaia,extra_epm}, Mags =[{gaia_mags},{extra_mag_cut}]',fontsize = 15, y = 1.1)
 ax.set_title(f'Proyected Gaia pm. Degre {max_deg-1}', fontsize= 15)
 ax2.set_title(f'Ref. epoch GNS{destination}. Matches {len(d_pmx_ga_m)}', fontsize = 15)
 ax.hist(d_pmx_ga, bins = bins, color = 'k', alpha = 0.2)
@@ -1757,8 +1851,8 @@ plt.rcParams.update({
 if look_for_cluster == 'yes':
     
    
-    # modes = ['pm_xy_color']
-    modes = ['pm_xy']
+    modes = ['pm_xy_color']
+    # modes = ['pm_xy']
     knn = 50
     gen_sim = 'kernnel'
     sim_lim ='minimun'
@@ -1768,14 +1862,14 @@ if look_for_cluster == 'yes':
                                      'xp', 'yp', 
                                      'l', 'b',
                                      modes[0],
-                                     'H','H',
+                                     'H','Ks',
                                      knn,gen_sim,sim_lim, save_reg = pruebas2)
     elif destination == 1:
         clus_dic = cluster_finder.finder(gns1_mpm, 'pm_x', 'pm_y',
                                      'xp', 'yp', 
                                      'l', 'b',
                                      modes[0],
-                                     'H','H',
+                                     'H','Ks',
                                      knn,gen_sim,sim_lim, save_reg = pruebas1)
     
     
@@ -1809,7 +1903,7 @@ if look_for_cluster == 'yes':
 else:
     print('99')
  
-stop(1789)
+stop(1873)
 # %%
 
 
@@ -1880,7 +1974,7 @@ meta = {'Script': '/Users/amartinez/Desktop/PhD/HAWK/GNS_pm_scripts/GNS_pm_relat
 
 # plt.savefig(f'/Users/amartinez/Desktop/PhD/My_papers/GNS_pm_catalog/images/REL_F1_{field_one}_gaia_resi_pm.png', dpi = 150, transparent = True, metadata = meta)
 
-sys.exit(1381)
+sys.exit(1994)
 # %%
 fig, ax = plt.subplots(1,1, figsize = (8,8))
 his = ax.hist2d(gns1_mi[band1],(gns1_mi['dpm_x'] + gns1_mi['dpm_y'])/2 , bins = 100,norm = LogNorm())
